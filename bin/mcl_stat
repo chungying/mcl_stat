@@ -1,0 +1,260 @@
+#! /usr/bin/env python
+import mcl_stat.util as ut
+import sys
+import rosbag
+import collections
+import matplotlib.pyplot as plt
+import numpy as np
+from math import pi, sqrt
+TRUTH='/p3dx/base_pose_ground_truth'
+POSE='/mcl_pose'
+fileIdx = 0
+thres_d = 2
+thres_a = pi*15/180
+
+def sqrt0(value):
+  if value<=0:
+    return 0.0
+  else:
+    return sqrt(value)
+
+def process(bagfile, plotFlag = True):
+  truth = collections.OrderedDict()
+  #guess = collections.OrderedDict()
+  poses = collections.OrderedDict()
+  bag = None
+  try:
+    #read rosbag
+    bag = rosbag.Bag(bagfile)
+    pose_flag = False
+    try:
+      GUESS = ''
+      if bag.get_message_count(TRUTH) == 0 or bag.get_message_count(POSE) == 0:
+        print "The file is incomplete. Please check if the rosbag file contains", POSE, "and ", TRUTH, " topics."
+        print "Please type:"
+        print "rosbag info ", bagfile, '| grep "mcl_pose\|base_pose"'
+        return (False, 0, 0)
+      elif bag.get_message_count(POSE) > 0:
+        pose_flag = True
+      else:
+        print "something wrong"
+        return (False, 0, 0)
+        
+      #if there is no exception
+      #extract mcl_pose and p3dx/base_pose_ground_truth
+      for topic, msg, t in bag.read_messages(topics=[TRUTH, POSE]):
+        if topic == TRUTH: 
+          truth[t] = msg
+      #for topic, msg, t in bag.read_messages(topics=POSE):
+        elif topic == POSE and pose_flag: 
+          #guess[t] = msg
+          poses[t] = msg
+      global fileIdx
+      fileIdx += 1
+    finally:
+      bag.close()
+  except rosbag.ROSBagException:
+    print "Cannot open ", bagfile
+    return (False, 0, 0)
+  except rosbag.ROSBagFormatException:
+    print bagfile, " is corrupted."
+    return (False, 0, 0)
+  if len(poses) == 0:
+    print "poses legnth: ", len(poses)
+    return (False, 0, 0)
+  guess = None
+  if pose_flag: guess = poses
+  else :
+    print "something wrong"
+    return (False, 0, 0)
+
+  tkeys = truth.keys()
+  gkeys = guess.keys()
+  zlist = []
+  for gk in gkeys:
+    tk = ut.takeClosest(tkeys, gk)
+    z = (truth[tk], guess[gk])
+    zlist.append(z)
+  # figure 1: position figure
+  # figure 2: heading curve
+  # figure 3: position error curve
+  # figure 4: heading error curve
+  tx = []
+  ty = []
+  ta = []
+  gx = []
+  gy = []
+  ga = []
+  gxv = []
+  gxv1 = []
+  gxv2 = []
+  gyv1 = []
+  gyv2 = []
+  gybool = []
+  gav1 = []
+  gav2 = []
+  ed = []
+  ea = []
+  st = []
+  for tup in zlist:
+    # pose_flag
+    # geometry_msgs/PoseWithCovarianceStamped
+    tx.append(tup[0].pose.pose.position.x)
+    ty.append(tup[0].pose.pose.position.y)
+    ta.append(ut.ori2heading(tup[0].pose.pose.orientation))
+    gx.append(tup[1].pose.pose.position.x)
+    gy.append(tup[1].pose.pose.position.y)
+    ga.append(ut.ori2heading(tup[1].pose.pose.orientation))
+    gxv.append(tup[1].pose.covariance[0])
+    stddev = sqrt0(tup[1].pose.covariance[0])
+    gxv1.append(gx[-1] + 2*stddev)
+    gxv2.append(gx[-1] - 2*stddev)
+    stddev = sqrt0(tup[1].pose.covariance[7])
+    gyv1.append(gy[-1] + 2*stddev)
+    gyv2.append(gy[-1] - 2*stddev)
+    stddev = sqrt0(tup[1].pose.covariance[35])
+    gav1.append(ga[-1] + 2*stddev)
+    gav2.append(ga[-1] - 2*stddev)
+    status, dd, da = ut.ifSucc(tup[0], tup[1])
+    st.append(status)
+    ed.append(dd)
+    ea.append(da)
+
+  avged = np.mean(ed)
+  avgea = np.mean(ea)
+  stded = np.std(ed)
+  stdea = np.std(ea)
+  if st[-1]:
+    #analyse zlist
+    print 'processing', fileIdx, "-th succeed ", bagfile, "dist", avged, "+-", stded, "head", avgea, "+-", stdea
+  else:
+    print 'processing', fileIdx, "-th failed ", bagfile
+
+  if plotFlag:
+    #ploting figures
+    fig = plt.figure(fileIdx)
+    imgName = bagfile.split('.bag',1)[0]
+    if st[-1]:
+      imgName += '-succeeded'
+    else:
+      imgName += '-failed'
+    plt.suptitle(imgName, fontsize=16)
+    
+    plt.subplot(2,3,1)
+    plt.title('trajectory')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.plot(tx, ty)
+    plt.plot(gx, gy)
+
+    plt.subplot(2,3,2)
+    plt.title('position error')
+    plt.xlabel('time step')
+    plt.ylabel('meter')
+    plt.plot(ed)
+
+    plt.subplot(2,3,3)
+    plt.title('heading error')
+    plt.xlabel('time step')
+    plt.ylabel('rad')
+    plt.plot(ea)
+
+    axx = plt.subplot(2,3,4)
+    plt.title('x')
+    plt.xlabel('time step')
+    plt.ylabel('meter')
+    axx.set_ylim(-28, 23)
+    axx.plot(range(len(tx)), tx, color='blue')
+    axx.plot(range(len(gx)), gx, color='red')
+    axx.plot(range(len(gxv1)), gxv1, range(len(gxv2)), gxv2, linestyle='None')
+    axx.fill_between(range(len(gx)), gx, gxv1, where=[True]*len(gx), facecolor=(0.5, 0, 0, 0.1), linestyle='-.', linewidth=0.5, color='red')
+    axx.fill_between(range(len(gx)), gx, gxv2, where=[True]*len(gx), facecolor=(0.5, 0, 0, 0.1), linestyle='-.', linewidth=0.5, color='red')
+
+    axy = plt.subplot(2,3,5)
+    plt.title('y')
+    plt.xlabel('time step')
+    plt.ylabel('meter')
+    axy.set_ylim(-11, 39)
+    axy.plot(range(len(ty)), ty, color='blue')
+    axy.plot(range(len(gy)), gy, color='red')
+    axy.plot(range(len(gyv1)), gyv1, range(len(gyv2)), gyv2, linestyle='None')
+    axy.fill_between(range(len(gy)), gy, gyv1, where=[True]*len(gy), facecolor=(0.5, 0, 0, 0.1), linestyle='-.', linewidth=0.5, color='red')
+    axy.fill_between(range(len(gy)), gy, gyv2, where=[True]*len(gy), facecolor=(0.5, 0, 0, 0.1), linestyle='-.', linewidth=0.5, color='red')
+
+    axa = plt.subplot(2,3,6)
+    plt.title('heading')
+    plt.xlabel('time step')
+    plt.ylabel('rad')
+    axa.set_ylim(-pi, pi)
+    axa.plot(range(len(ta)), ta, color='blue')
+    axa.plot(range(len(ga)), ga, color='red')
+    axa.plot(range(len(gav1)), gav1, range(len(gav2)), gav2, linestyle='None')
+    axa.fill_between(range(len(ga)), ga, gav1, where=[True]*len(ga), facecolor=(0.5, 0, 0, 0.1), linestyle='-.', linewidth=0.5, color='red')
+    axa.fill_between(range(len(ga)), ga, gav2, where=[True]*len(ga), facecolor=(0.5, 0, 0, 0.1), linestyle='-.', linewidth=0.5, color='red')
+
+    fig.subplots_adjust(hspace=0.4)
+    fig.subplots_adjust(wspace=0.3)
+    fig.set_size_inches(16, 10, forward=True)
+    plt.draw()
+    #saving figures
+    fileName = imgName + ".png"
+    print "saving to ", fileName
+    plt.savefig(fileName)
+    #plt.show()
+    plt.close(fig)
+  #ifSucc
+  #finalError
+  return (st[-1], ed[-1], ea[-1])
+
+def help():
+  print "please enter names of rosbag files"
+  print "mcl_stat.py SAVEFIG BAG1 BAG2 ..."
+  print "When SAVEFIG is true, save figures."
+  print "BAG is the filename of a bag file."
+  
+
+if __name__=='__main__':
+  if len(sys.argv) == 1:
+    help()
+    exit(1)
+  elif len(sys.argv) == 2:
+    if sys.argv[1].find(".bag") == -1:
+      print sys.argv[1], " is not bag file"
+      help()
+      exit(1)
+    elif sys.argv[1].find(".bag") >= 0:
+      print "only got one bag file, saving the figure"
+      s, d, a = process( sys.argv[1], True)
+    exit(0)
+  print "there are more than two arguments"
+  plotFlag = False
+  bagfiles = []
+  if sys.argv[1].find(".bag") == -1:
+    if sys.argv[1].lower() == "true": 
+      plotFlag = True
+    else: 
+      plotFlag = False
+    bagfiles += sys.argv[2:]
+  else:
+    plotFlag = False
+    bagfiles += sys.argv[1:]
+
+  total = len(bagfiles)
+  print "there are ", total, " files."
+  sucCount = 0
+  final_d = []
+  final_a = []
+  for each in bagfiles:
+    if each.find(".bag") == -1:
+      print each, " is not a rosbag file."
+    else:
+      s, d, a = process(each, plotFlag)
+      if s: 
+        sucCount += 1
+        final_d.append(d)
+        final_a.append(a)
+  print "successfual rate: ", sucCount, " out of ", total, " = ", 1.0*sucCount/total*100.0, "%"
+  if sucCount>0:
+    print "distance", np.mean(final_d), "+-", np.std(final_d)
+    print "heading", np.mean(final_a), "+-", np.std(final_a)
+  exit(0)
