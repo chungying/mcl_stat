@@ -27,14 +27,18 @@ def conj(q):
   id4[3,3] *= -1
   return id4.dot(q)
 
+conjugate = numpy.array(
+[[-1.0, 0.0, 0.0, 0.0],#x
+ [0.0, -1.0, 0.0, 0.0],#y
+ [0.0, 0.0, -1.0, 0.0],#z
+ [0.0, 0.0, 0.0, 1.0]] #w
+,dtype=numpy.float64)
+
 def angDiff(q1, q2):
   "difference angle between two quaternions"
   #conjugate q2
   invq2 = conj(q2)
   return qm(q1, invq2)
-
-def posDiff(p1, p2):
-  return sqrt((p1.x - p2.x)*(p1.x - p2.x) + (p1.y - p2.y)*(p1.y - p2.y))
 
 def ori2arr(ori):
   return numpy.array([ori.x, ori.y, ori.z, ori.w])
@@ -49,6 +53,9 @@ def msgErr(t, g):
   diff_e = q2e(diff_q)#note that diff_a is 3-d vector and only z euler angle is needed
   diff_d = posDiff(t.pose.pose.position, g.pose.pose.position)
   return (diff_d, abs(diff_e[2]))
+
+def posDiff(p1, p2):
+  return sqrt((p1.x - p2.x)*(p1.x - p2.x) + (p1.y - p2.y)*(p1.y - p2.y))
 
 def ifSucc(truth, guess, thres_d = 2, thres_a = pi*15/180):
   "if guess is close to truth"
@@ -73,6 +80,3 @@ def takeClosest(myList, myNumber):
        return after
     else:
        return before
-
-#def plotMsg(truth, guess):
-  

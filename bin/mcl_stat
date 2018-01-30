@@ -1,8 +1,10 @@
 #! /usr/bin/env python
 import mcl_stat.util as ut
+import mcl_stat.ioutil as iu
+import re
 import sys
 import rosbag
-import collections
+from collections import OrderedDict
 import matplotlib.pyplot as plt
 import numpy as np
 from math import pi, sqrt
@@ -11,6 +13,9 @@ POSE='/mcl_pose'
 fileIdx = 0
 thres_d = 2
 thres_a = pi*15/180
+tfm={True: 'Succeeded', False: 'Failed'}
+err = []
+sqerr = []
 
 def sqrt0(value):
   if value<=0:
@@ -18,56 +23,81 @@ def sqrt0(value):
   else:
     return sqrt(value)
 
-def process(bagfile, plotFlag = True):
-  truth = collections.OrderedDict()
-  #guess = collections.OrderedDict()
-  poses = collections.OrderedDict()
+def errtimestat(errtimelist):
+  #TODO observe the longest and shortest ones
+  longest = (0,len(errtimelist[0]))
+  shortest = (0,len(errtimelist[0]))
+  for i, each in enumerate(errtimelist):
+    length = len(each)
+    if longest[1] < length: longest = (i, length)
+    if shortest[1] > length: shortest = (i,length)
+  #align all to the timeline of the longest and produce a matrix
+  rows = len(errtimelist)
+  cols = len(errtimelist[longest[0]])
+  mat = np.arange(rows*cols,dtype=float).reshape(rows,cols)
+  for idx_row, each in enumerate(errtimelist):
+    if len(each) != shortest[0]:
+      for idx_col, (time, err) in enumerate(errtimelist[shortest[0]].items()):
+        closestkey = ut.takeClosest(each.keys(), time)
+        mat[idx_row, idx_col] = each[closestkey]
+    else:
+        mat[idx_row, :] = np.array(each.values())
+  #each column is a timestep
+  #produce mean, std, minimum, maximum in a matrix
+  errtimemat = np.arange(5*cols,dtype=float).reshape(5,cols)
+  for idx_col, (time, err) in enumerate(errtimelist[shortest[0]].items()):
+    errtimemat[:,idx_col] = np.array([time, np.mean(mat[:,idx_col]), np.std(mat[:,idx_col]), np.min(mat[:,idx_col]), np.max(mat[:,idx_col]) ])
+  return errtimemat
+
+def process(bagfile, plotFlag = True, errtime=None):
+  #block 1
+  #input:
+  #bagfile
+  #TRUTH
+  #POSE
+  #output:
+  #truth
+  #guess
+  truth = OrderedDict()
+  guess = OrderedDict()
   bag = None
   try:
     #read rosbag
     bag = rosbag.Bag(bagfile)
-    pose_flag = False
     try:
       GUESS = ''
       if bag.get_message_count(TRUTH) == 0 or bag.get_message_count(POSE) == 0:
         print "The file is incomplete. Please check if the rosbag file contains", POSE, "and ", TRUTH, " topics."
         print "Please type:"
         print "rosbag info ", bagfile, '| grep "mcl_pose\|base_pose"'
-        return (False, 0, 0)
-      elif bag.get_message_count(POSE) > 0:
-        pose_flag = True
-      else:
+        return (False, 0, 0, 0)
+      elif bag.get_message_count(POSE) == 0:
         print "something wrong"
-        return (False, 0, 0)
+        return (False, 0, 0, 0)
         
       #if there is no exception
       #extract mcl_pose and p3dx/base_pose_ground_truth
       for topic, msg, t in bag.read_messages(topics=[TRUTH, POSE]):
         if topic == TRUTH: 
-          truth[t] = msg
-      #for topic, msg, t in bag.read_messages(topics=POSE):
-        elif topic == POSE and pose_flag: 
-          #guess[t] = msg
-          poses[t] = msg
+          truth[msg.header.stamp] = msg
+        elif topic == POSE: 
+          guess[msg.header.stamp] = msg
       global fileIdx
       fileIdx += 1
     finally:
       bag.close()
   except rosbag.ROSBagException:
     print "Cannot open ", bagfile
-    return (False, 0, 0)
+    return (False, 0, 0, 0)
   except rosbag.ROSBagFormatException:
     print bagfile, " is corrupted."
-    return (False, 0, 0)
-  if len(poses) == 0:
-    print "poses legnth: ", len(poses)
-    return (False, 0, 0)
-  guess = None
-  if pose_flag: guess = poses
-  else :
-    print "something wrong"
-    return (False, 0, 0)
-
+    return (False, 0, 0, 0)
+  if len(guess) == 0:
+    print "guess legnth: ", len(guess)
+    return (False, 0, 0, 0)
+  #block 2
+  #input:fileIdx, plotFlag, bagfile, truth, guess
+  #output: ploting a figure, status, ed, ea, rmse eddict
   tkeys = truth.keys()
   gkeys = guess.keys()
   zlist = []
@@ -96,8 +126,7 @@ def process(bagfile, plotFlag = True):
   ed = []
   ea = []
   st = []
-  for tup in zlist:
-    # pose_flag
+  for tup in zlist:#note that zlist is time-ordered
     # geometry_msgs/PoseWithCovarianceStamped
     tx.append(tup[0].pose.pose.position.x)
     ty.append(tup[0].pose.pose.position.y)
@@ -118,17 +147,16 @@ def process(bagfile, plotFlag = True):
     status, dd, da = ut.ifSucc(tup[0], tup[1])
     st.append(status)
     ed.append(dd)
+    errtime[tup[1].header.stamp.to_sec()]=dd
     ea.append(da)
 
+  edarr = np.array(ed)
+  rmse = sqrt(edarr.dot(edarr)/len(edarr))
   avged = np.mean(ed)
   avgea = np.mean(ea)
   stded = np.std(ed)
   stdea = np.std(ea)
-  if st[-1]:
-    #analyse zlist
-    print 'processing', fileIdx, "-th succeed ", bagfile, "dist", avged, "+-", stded, "head", avgea, "+-", stdea
-  else:
-    print 'processing', fileIdx, "-th failed ", bagfile
+  print 'processing {idx}-th {status}, d: {avgd}+-{stdd}, h:{avga}+-{stda}, final: {fed} {fea}, rmse: {rms}'.format(idx=fileIdx, status=tfm[st[-1]], avgd=avged, stdd=stded, avga=avgea, stda=stdea, fed=ed[-1], fea=ea[-1], rms=rmse)
 
   if plotFlag:
     #ploting figures
@@ -202,9 +230,7 @@ def process(bagfile, plotFlag = True):
     plt.savefig(fileName)
     #plt.show()
     plt.close(fig)
-  #ifSucc
-  #finalError
-  return (st[-1], ed[-1], ea[-1])
+  return (st[-1], ed[-1], ea[-1], rmse)
 
 def help():
   print "please enter names of rosbag files"
@@ -224,7 +250,7 @@ if __name__=='__main__':
       exit(1)
     elif sys.argv[1].find(".bag") >= 0:
       print "only got one bag file, saving the figure"
-      s, d, a = process( sys.argv[1], True)
+      s, d, a, rmse = process( sys.argv[1], True)
     exit(0)
   print "there are more than two arguments"
   plotFlag = False
@@ -242,19 +268,62 @@ if __name__=='__main__':
   total = len(bagfiles)
   print "there are ", total, " files."
   sucCount = 0
-  final_d = []
-  final_a = []
+  final_sqrd_ed = []
+  final_sqrt_ea = []
+  final_mean_ed = []
+  final_mean_ea = []
+  rmses = []
+  errtimelist = []
   for each in bagfiles:
     if each.find(".bag") == -1:
       print each, " is not a rosbag file."
     else:
-      s, d, a = process(each, plotFlag)
+      errtime = OrderedDict()
+      s, d, a, rmse = process(each, plotFlag, errtime=errtime)
       if s: 
         sucCount += 1
-        final_d.append(d)
-        final_a.append(a)
+      final_mean_ed.append(d)
+      final_mean_ea.append(a)
+      final_sqrd_ed.append(d*d)
+      final_sqrt_ea.append(a*a)
+      rmses.append(rmse)
+      errtimelist.append(errtime)
   print "successfual rate: ", sucCount, " out of ", total, " = ", 1.0*sucCount/total*100.0, "%"
-  if sucCount>0:
-    print "distance", np.mean(final_d), "+-", np.std(final_d)
-    print "heading", np.mean(final_a), "+-", np.std(final_a)
+  print "avg_mean_distanceerr: ", np.mean(final_mean_ed), "+-", np.std(final_mean_ed)
+  print "avg_mean_headingerr: ", np.mean(final_mean_ea), "+-", np.std(final_mean_ea)
+  print "avg_sqrd_distanceerr: ", np.mean(final_sqrd_ed), "+-", np.std(final_sqrd_ed)
+  print "avg_sqrd_headingerr: ", np.mean(final_sqrt_ea), "+-", np.std(final_sqrt_ea)
+  print "avg_rmse_distance: ", np.mean(rmses), "+-", np.std(rmses)
+  batch_name = bagfiles[0].split('_201',1)[0]
+  dic = {'list_final_ed':final_mean_ed, 'list_final_ea':final_mean_ea}
+  dic['folder'] = '/'.join(batch_name.split('/')[0:-1])
+  words = re.split('[/_]',batch_name)
+  if 'amcl' in words: dic['mclpkg'] = 'amcl'
+  elif 'mixmcl' in words: dic['mclpkg'] = 'mixmcl'
+  elif 'mcmcl' in words: dic['mclpkg'] = 'mcmcl'
+  elif 'mcl' in words: dic['mclpkg'] = 'mcl'
+  else:
+    print 'cannot identify mclpkg by method2'
+  ls = re.split('[ /_]',batch_name)
+  for s in ls:
+    if 'mp' in s:
+      dic['mp'] = int(s.split('mp')[-1])
+    if 'ri' in s:
+      dic['ri'] = int(s.split('ri')[-1])
+    if 'ita' in s:
+      dic['ita'] = float(s.split('ita')[-1])
+    if 'gamma' in s:
+      dic['gamma'] = int(s.split('gamma')[-1])
+  dic['list_final_ed'] = final_mean_ed
+  dic['list_final_ea'] = final_mean_ea
+  dic['list_rmse'] = rmses
+  #TODO errtime statistics from errtimestatmat
+  dic['list_errtimestatmat'] = errtimestat(errtimelist)
+  print "saving file:", batch_name
+  iu.data2pkl(batch_name+'.pkl', dic)
+  with open(batch_name+'.txt', 'w') as outputfile:
+    line = 'average_error {0!r} {1!r}\n'.format(np.mean(final_mean_ed), np.mean(final_mean_ea))
+    outputfile.write(line)
+    line = 'average_squared_error {0!r} {1!r}\n'.format(np.mean(final_sqrd_ed), np.mean(final_sqrt_ea))
+    outputfile.write(line)
   exit(0)
