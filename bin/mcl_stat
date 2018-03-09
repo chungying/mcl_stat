@@ -1,236 +1,150 @@
 #! /usr/bin/env python
 import mcl_stat.util as ut
+import mcl_stat.statutil as su
 import mcl_stat.ioutil as iu
+import mcl_stat.plotutil as pu
 import re
 import sys
 import rosbag
-from collections import OrderedDict
+from collections import OrderedDict as od
 import matplotlib.pyplot as plt
 import numpy as np
-from math import pi, sqrt
-TRUTH='/p3dx/base_pose_ground_truth'
-POSE='/mcl_pose'
+from math import pi
+
+BEGIN=None
 fileIdx = 0
 thres_d = 2
 thres_a = pi*15/180
 tfm={True: 'Succeeded', False: 'Failed'}
-err = []
-sqerr = []
 
-def sqrt0(value):
-  if value<=0:
-    return 0.0
+def comphelper(tup, *vartuple):
+  print 'in comparition'
+  print tup
+  for var in vartuple:
+    print var
+  return tup[0].to_nsec()
+
+def process(bagfile, plotflag = True, errtime=None, clouddict=None):
+  #read bagfile
+  truth = od()
+  guess = od()
+  cloud = od()
+  global fileIdx
+  if iu.readbag(bagfile, truth, guess, cloud):
+    fileIdx += 1
+    #check time order
   else:
-    return sqrt(value)
+    print 'failed to read',bagfile
 
-def errtimestat(errtimelist):
-  #TODO observe the longest and shortest ones
-  longest = (0,len(errtimelist[0]))
-  shortest = (0,len(errtimelist[0]))
-  for i, each in enumerate(errtimelist):
-    length = len(each)
-    if longest[1] < length: longest = (i, length)
-    if shortest[1] > length: shortest = (i,length)
-  #align all to the timeline of the longest and produce a matrix
-  rows = len(errtimelist)
-  cols = len(errtimelist[longest[0]])
-  mat = np.arange(rows*cols,dtype=float).reshape(rows,cols)
-  for idx_row, each in enumerate(errtimelist):
-    if len(each) != shortest[0]:
-      for idx_col, (time, err) in enumerate(errtimelist[shortest[0]].items()):
-        closestkey = ut.takeClosest(each.keys(), time)
-        mat[idx_row, idx_col] = each[closestkey]
-    else:
-        mat[idx_row, :] = np.array(each.values())
-  #each column is a timestep
-  #produce mean, std, minimum, maximum in a matrix
-  errtimemat = np.arange(5*cols,dtype=float).reshape(5,cols)
-  for idx_col, (time, err) in enumerate(errtimelist[shortest[0]].items()):
-    errtimemat[:,idx_col] = np.array([time, np.mean(mat[:,idx_col]), np.std(mat[:,idx_col]), np.min(mat[:,idx_col]), np.max(mat[:,idx_col]) ])
-  return errtimemat
+  if not iu.ifsorted(truth):
+    print 'going to sort truth in',bagfile
+    truth = od(sorted(truth.items(), key=lambda t: t[0]))
+  if not iu.ifsorted(guess):
+    print 'going to sort guess in',bagfile
+    guess = od(sorted(guess.items(), key=lambda t: t[0]))
+  if not iu.ifsorted(cloud):
+    print 'going to sort cloud in',bagfile
+    cloud = od(sorted(cloud.items(), key=lambda t: t[0]))
 
-def process(bagfile, plotFlag = True, errtime=None):
-  #block 1
-  #input:
-  #bagfile
-  #TRUTH
-  #POSE
-  #output:
-  #truth
-  #guess
-  truth = OrderedDict()
-  guess = OrderedDict()
-  bag = None
-  try:
-    #read rosbag
-    bag = rosbag.Bag(bagfile)
-    try:
-      GUESS = ''
-      if bag.get_message_count(TRUTH) == 0 or bag.get_message_count(POSE) == 0:
-        print "The file is incomplete. Please check if the rosbag file contains", POSE, "and ", TRUTH, " topics."
-        print "Please type:"
-        print "rosbag info ", bagfile, '| grep "mcl_pose\|base_pose"'
-        return (False, 0, 0, 0)
-      elif bag.get_message_count(POSE) == 0:
-        print "something wrong"
-        return (False, 0, 0, 0)
-        
-      #if there is no exception
-      #extract mcl_pose and p3dx/base_pose_ground_truth
-      for topic, msg, t in bag.read_messages(topics=[TRUTH, POSE]):
-        if topic == TRUTH: 
-          truth[msg.header.stamp] = msg
-        elif topic == POSE: 
-          guess[msg.header.stamp] = msg
-      global fileIdx
-      fileIdx += 1
-    finally:
-      bag.close()
-  except rosbag.ROSBagException:
-    print "Cannot open ", bagfile
-    return (False, 0, 0, 0)
-  except rosbag.ROSBagFormatException:
-    print bagfile, " is corrupted."
-    return (False, 0, 0, 0)
-  if len(guess) == 0:
-    print "guess legnth: ", len(guess)
-    return (False, 0, 0, 0)
   #block 2
-  #input:fileIdx, plotFlag, bagfile, truth, guess
-  #output: ploting a figure, status, ed, ea, rmse eddict
+  #input:fileIdx, plotflag, bagfile, truth, guess
+  #output: ploting a figure, dic
   tkeys = truth.keys()
+  #check begin time of groud truth
+  global BEGIN
+  if BEGIN == None:
+    BEGIN = tkeys[0]
+  else:
+    if BEGIN != tkeys[0]: raise Exception('base_pose_groud_truth is not sychronized.')
+  #check time order
   gkeys = guess.keys()
-  zlist = []
-  for gk in gkeys:
-    tk = ut.takeClosest(tkeys, gk)
-    z = (truth[tk], guess[gk])
-    zlist.append(z)
-  # figure 1: position figure
-  # figure 2: heading curve
-  # figure 3: position error curve
-  # figure 4: heading error curve
-  tx = []
-  ty = []
-  ta = []
-  gx = []
-  gy = []
-  ga = []
-  gxv = []
-  gxv1 = []
-  gxv2 = []
-  gyv1 = []
-  gyv2 = []
-  gybool = []
-  gav1 = []
-  gav2 = []
-  ed = []
-  ea = []
+  ckeys = cloud.keys()
+  prev = gkeys[0]
+  for idx, gk in enumerate(gkeys):
+    if gk < prev:
+      raise Exception('guess is not time-ordered.')
+    if ckeys[idx] != gk:
+      print '/particlecloud and /mcl_pose is not synchronized.'
+    prev = gk
+  #processing messages
+  plotmat = np.arange(12*len(gkeys),dtype=float).reshape(12,len(gkeys))
+  errmat = np.arange(2*len(gkeys),dtype=float).reshape(2,len(gkeys))
   st = []
-  for tup in zlist:#note that zlist is time-ordered
-    # geometry_msgs/PoseWithCovarianceStamped
-    tx.append(tup[0].pose.pose.position.x)
-    ty.append(tup[0].pose.pose.position.y)
-    ta.append(ut.ori2heading(tup[0].pose.pose.orientation))
-    gx.append(tup[1].pose.pose.position.x)
-    gy.append(tup[1].pose.pose.position.y)
-    ga.append(ut.ori2heading(tup[1].pose.pose.orientation))
-    gxv.append(tup[1].pose.covariance[0])
-    stddev = sqrt0(tup[1].pose.covariance[0])
-    gxv1.append(gx[-1] + 2*stddev)
-    gxv2.append(gx[-1] - 2*stddev)
-    stddev = sqrt0(tup[1].pose.covariance[7])
-    gyv1.append(gy[-1] + 2*stddev)
-    gyv2.append(gy[-1] - 2*stddev)
-    stddev = sqrt0(tup[1].pose.covariance[35])
-    gav1.append(ga[-1] + 2*stddev)
-    gav2.append(ga[-1] - 2*stddev)
-    status, dd, da = ut.ifSucc(tup[0], tup[1])
-    st.append(status)
-    ed.append(dd)
-    errtime[tup[1].header.stamp.to_sec()]=dd
-    ea.append(da)
-
-  edarr = np.array(ed)
-  rmse = sqrt(edarr.dot(edarr)/len(edarr))
-  avged = np.mean(ed)
-  avgea = np.mean(ea)
-  stded = np.std(ed)
-  stdea = np.std(ea)
-  print 'processing {idx}-th {status}, d: {avgd}+-{stdd}, h:{avga}+-{stda}, final: {fed} {fea}, rmse: {rms}'.format(idx=fileIdx, status=tfm[st[-1]], avgd=avged, stdd=stded, avga=avgea, stda=stdea, fed=ed[-1], fea=ea[-1], rms=rmse)
-
-  if plotFlag:
-    #ploting figures
-    fig = plt.figure(fileIdx)
-    imgName = bagfile.split('.bag',1)[0]
-    if st[-1]:
-      imgName += '-succeeded'
-    else:
-      imgName += '-failed'
-    plt.suptitle(imgName, fontsize=16)
+  if clouddict is None:
+    clouddict = {
+      'timestamp':[], 
+      'total_number':[], 
+      'good_hyp_number':[], 
+      'all_dd':[], 
+      'all_da':[]
+    }
+  else:
+    clouddict['timestamp']=[] 
+    clouddict['total_number']=[] 
+    clouddict['good_hyp_number']=[] 
+    clouddict['all_dd']=[] 
+    clouddict['all_da']=[]
     
-    plt.subplot(2,3,1)
-    plt.title('trajectory')
-    plt.xlabel('x')
-    plt.ylabel('y')
-    plt.plot(tx, ty)
-    plt.plot(gx, gy)
+  for col_idx, gk in enumerate(gkeys):
+    # geometry_msgs/PoseWithCovarianceStamped
+    tk = ut.takeClosest(tkeys, gk)
+    status, dd, da = ut.ifSucc(truth[tk].pose.pose, guess[gk].pose.pose)
+    if errtime is not None:
+      errtime[guess[gk].header.stamp.to_sec()-BEGIN.to_sec()]=dd#Euclidean distance
+    st.append(status)
+    errmat[0, col_idx] = dd#Euclidean distance
+    errmat[1, col_idx] = da
 
-    plt.subplot(2,3,2)
-    plt.title('position error')
-    plt.xlabel('time step')
-    plt.ylabel('meter')
-    plt.plot(ed)
+    good_number = 0
+    allhyp_dd = []
+    allhyp_da = []
+    for hyp_idx, hyppose in enumerate(cloud[gk].poses):
+      #calculate the error of pose and ground truth
+      status, dd, da = ut.ifSucc(hyppose, truth[tk].pose.pose)
+      if status: 
+        good_number += 1
+      allhyp_dd.append(dd)
+      allhyp_da.append(da)
+    clouddict['timestamp'].append(guess[gk].header.stamp.to_sec()-BEGIN.to_sec())
+    clouddict['good_hyp_number'].append(good_number)
+    clouddict['total_number'].append(len(cloud[gk].poses))
+    clouddict['all_dd'].append(allhyp_dd)
+    clouddict['all_da'].append(allhyp_da)
 
-    plt.subplot(2,3,3)
-    plt.title('heading error')
-    plt.xlabel('time step')
-    plt.ylabel('rad')
-    plt.plot(ea)
+    if plotflag:
+      plotmat[0, col_idx] = truth[tk].pose.pose.position.x
+      plotmat[1, col_idx] = truth[tk].pose.pose.position.y
+      plotmat[2, col_idx] = ut.ori2heading(truth[tk].pose.pose.orientation)
+      plotmat[3, col_idx] = guess[gk].pose.pose.position.x
+      plotmat[4, col_idx] = guess[gk].pose.pose.position.y
+      plotmat[5, col_idx] = ut.ori2heading(guess[gk].pose.pose.orientation)
+      stddev = su.sqrt0(guess[gk].pose.covariance[0])
+      plotmat[6, col_idx] = plotmat[3, col_idx] + 2*stddev
+      plotmat[7, col_idx] = plotmat[3, col_idx] - 2*stddev
+      stddev = su.sqrt0(guess[gk].pose.covariance[7])
+      plotmat[8, col_idx] = plotmat[4, col_idx] + 2*stddev
+      plotmat[9, col_idx] = plotmat[4, col_idx] - 2*stddev
+      stddev = su.sqrt0(guess[gk].pose.covariance[35])
+      plotmat[10, col_idx] = plotmat[5, col_idx] + 2*stddev
+      plotmat[11, col_idx] = plotmat[5, col_idx] - 2*stddev
 
-    axx = plt.subplot(2,3,4)
-    plt.title('x')
-    plt.xlabel('time step')
-    plt.ylabel('meter')
-    axx.set_ylim(-28, 23)
-    axx.plot(range(len(tx)), tx, color='blue')
-    axx.plot(range(len(gx)), gx, color='red')
-    axx.plot(range(len(gxv1)), gxv1, range(len(gxv2)), gxv2, linestyle='None')
-    axx.fill_between(range(len(gx)), gx, gxv1, where=[True]*len(gx), facecolor=(0.5, 0, 0, 0.1), linestyle='-.', linewidth=0.5, color='red')
-    axx.fill_between(range(len(gx)), gx, gxv2, where=[True]*len(gx), facecolor=(0.5, 0, 0, 0.1), linestyle='-.', linewidth=0.5, color='red')
+  rmsefunc = lambda a: su.sqrt0(a.dot(a)/len(a))
+  rmse = rmsefunc(errmat[0,:])
+  avged = np.mean(errmat[0,:])
+  avgea = np.mean(errmat[1,:])
+  stded = np.std(errmat[0,:])
+  stdea = np.std(errmat[1,:])
+  print 'processing {idx}-th {status}, d: {avgd}+-{stdd}, h:{avga}+-{stda}, final: {fed} {fea}, rmse: {rms}'.format(idx=fileIdx, status=tfm[st[-1]], avgd=avged, stdd=stded, avga=avgea, stda=stdea, fed=errmat[0,-1], fea=errmat[1,-1], rms=rmse)
 
-    axy = plt.subplot(2,3,5)
-    plt.title('y')
-    plt.xlabel('time step')
-    plt.ylabel('meter')
-    axy.set_ylim(-11, 39)
-    axy.plot(range(len(ty)), ty, color='blue')
-    axy.plot(range(len(gy)), gy, color='red')
-    axy.plot(range(len(gyv1)), gyv1, range(len(gyv2)), gyv2, linestyle='None')
-    axy.fill_between(range(len(gy)), gy, gyv1, where=[True]*len(gy), facecolor=(0.5, 0, 0, 0.1), linestyle='-.', linewidth=0.5, color='red')
-    axy.fill_between(range(len(gy)), gy, gyv2, where=[True]*len(gy), facecolor=(0.5, 0, 0, 0.1), linestyle='-.', linewidth=0.5, color='red')
-
-    axa = plt.subplot(2,3,6)
-    plt.title('heading')
-    plt.xlabel('time step')
-    plt.ylabel('rad')
-    axa.set_ylim(-pi, pi)
-    axa.plot(range(len(ta)), ta, color='blue')
-    axa.plot(range(len(ga)), ga, color='red')
-    axa.plot(range(len(gav1)), gav1, range(len(gav2)), gav2, linestyle='None')
-    axa.fill_between(range(len(ga)), ga, gav1, where=[True]*len(ga), facecolor=(0.5, 0, 0, 0.1), linestyle='-.', linewidth=0.5, color='red')
-    axa.fill_between(range(len(ga)), ga, gav2, where=[True]*len(ga), facecolor=(0.5, 0, 0, 0.1), linestyle='-.', linewidth=0.5, color='red')
-
-    fig.subplots_adjust(hspace=0.4)
-    fig.subplots_adjust(wspace=0.3)
-    fig.set_size_inches(16, 10, forward=True)
-    plt.draw()
-    #saving figures
-    fileName = imgName + ".png"
-    print "saving to ", fileName
-    plt.savefig(fileName)
-    #plt.show()
-    plt.close(fig)
-  return (st[-1], ed[-1], ea[-1], rmse)
+  if plotflag:
+    imgname = bagfile.split('.bag',1)[0]
+    if st[-1]:
+      imgname += '-succeeded'
+    else:
+      imgname += '-failed'
+    if errtime is not None:
+      pu.ploteach(fileIdx, imgname, errtime.keys(), errmat, plotmat, clouddict['good_hyp_number'], clouddict['total_number'])
+  return (st[-1], float(errmat[0,-1]), float(errmat[1,-1]), rmse)
 
 def help():
   print "please enter names of rosbag files"
@@ -253,49 +167,43 @@ if __name__=='__main__':
       s, d, a, rmse = process( sys.argv[1], True)
     exit(0)
   print "there are more than two arguments"
-  plotFlag = False
+  plotflag = False
   bagfiles = []
   if sys.argv[1].find(".bag") == -1:
     if sys.argv[1].lower() == "true": 
-      plotFlag = True
+      plotflag = True
     else: 
-      plotFlag = False
+      plotflag = False
     bagfiles += sys.argv[2:]
   else:
-    plotFlag = False
+    plotflag = False
     bagfiles += sys.argv[1:]
 
   total = len(bagfiles)
   print "there are ", total, " files."
   sucCount = 0
-  final_sqrd_ed = []
-  final_sqrt_ea = []
-  final_mean_ed = []
-  final_mean_ea = []
-  rmses = []
-  errtimelist = []
+  #create dic
+  dic = {'list_final_ed':[], 'list_final_ea':[], 'list_rmse':[]}
+  errtime_list = []
+  clouddict_list = []
   for each in bagfiles:
     if each.find(".bag") == -1:
       print each, " is not a rosbag file."
     else:
-      errtime = OrderedDict()
-      s, d, a, rmse = process(each, plotFlag, errtime=errtime)
+      errtime_dict = od()
+      clouddict = od()
+      s, d, a, rmse = process(each, plotflag, errtime=errtime_dict, clouddict=clouddict)
       if s: 
         sucCount += 1
-      final_mean_ed.append(d)
-      final_mean_ea.append(a)
-      final_sqrd_ed.append(d*d)
-      final_sqrt_ea.append(a*a)
-      rmses.append(rmse)
-      errtimelist.append(errtime)
-  print "successfual rate: ", sucCount, " out of ", total, " = ", 1.0*sucCount/total*100.0, "%"
-  print "avg_mean_distanceerr: ", np.mean(final_mean_ed), "+-", np.std(final_mean_ed)
-  print "avg_mean_headingerr: ", np.mean(final_mean_ea), "+-", np.std(final_mean_ea)
-  print "avg_sqrd_distanceerr: ", np.mean(final_sqrd_ed), "+-", np.std(final_sqrd_ed)
-  print "avg_sqrd_headingerr: ", np.mean(final_sqrt_ea), "+-", np.std(final_sqrt_ea)
-  print "avg_rmse_distance: ", np.mean(rmses), "+-", np.std(rmses)
-  batch_name = bagfiles[0].split('_201',1)[0]
-  dic = {'list_final_ed':final_mean_ed, 'list_final_ea':final_mean_ea}
+      dic['list_final_ed'].append(d)
+      dic['list_final_ea'].append(a)
+      dic['list_rmse'].append(rmse)
+      errtime_list.append(errtime_dict)
+      clouddict_list.append(clouddict)
+  dic['list_errtimestatmat'] = su.errtimestat(errtime_list)
+  #cloud stat 
+  dic['list_cloudstat'] = su.cloudstat(clouddict_list)
+  batch_name = bagfiles[0].split('_2018',1)[0]
   dic['folder'] = '/'.join(batch_name.split('/')[0:-1])
   words = re.split('[/_]',batch_name)
   if 'amcl' in words: dic['mclpkg'] = 'amcl'
@@ -314,16 +222,7 @@ if __name__=='__main__':
       dic['ita'] = float(s.split('ita')[-1])
     if 'gamma' in s:
       dic['gamma'] = int(s.split('gamma')[-1])
-  dic['list_final_ed'] = final_mean_ed
-  dic['list_final_ea'] = final_mean_ea
-  dic['list_rmse'] = rmses
-  #TODO errtime statistics from errtimestatmat
-  dic['list_errtimestatmat'] = errtimestat(errtimelist)
-  print "saving file:", batch_name
+  print "successfual rate: ", sucCount, " out of ", total, " = ", 1.0*sucCount/total*100.0, "%"
+  print "saving file:", (batch_name+'.pkl')
   iu.data2pkl(batch_name+'.pkl', dic)
-  with open(batch_name+'.txt', 'w') as outputfile:
-    line = 'average_error {0!r} {1!r}\n'.format(np.mean(final_mean_ed), np.mean(final_mean_ea))
-    outputfile.write(line)
-    line = 'average_squared_error {0!r} {1!r}\n'.format(np.mean(final_sqrd_ed), np.mean(final_sqrt_ea))
-    outputfile.write(line)
   exit(0)

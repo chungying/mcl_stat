@@ -11,7 +11,6 @@ def angleStat(angs):
   for ang in angs:
     s += sin(ang)
     c += cos(ang)
-  
 
 def qm(q1, q2):
   "quaternion multiplication"
@@ -48,21 +47,39 @@ def ori2heading(ori):
   #normalize between -pi~pi
   return atan2(sin(ang), cos(ang))
 
-def msgErr(t, g):
-  diff_q = angDiff(ori2arr(t.pose.pose.orientation), ori2arr(g.pose.pose.orientation))
+def msgErr(tpose, gpose):
+  diff_q = angDiff(ori2arr(tpose.orientation), ori2arr(gpose.orientation))
   diff_e = q2e(diff_q)#note that diff_a is 3-d vector and only z euler angle is needed
-  diff_d = posDiff(t.pose.pose.position, g.pose.pose.position)
+  diff_d = posDiff(tpose.position, gpose.position)
   return (diff_d, abs(diff_e[2]))
 
 def posDiff(p1, p2):
   return sqrt((p1.x - p2.x)*(p1.x - p2.x) + (p1.y - p2.y)*(p1.y - p2.y))
 
-def ifSucc(truth, guess, thres_d = 2, thres_a = pi*15/180):
+def ifSucc(truthpose, guesspose, thres_d = 2, thres_a = pi*15/180):
   "if guess is close to truth"
-  diff_d, diff_a = msgErr(truth, guess)
+  diff_d, diff_a = msgErr(truthpose, guesspose)
   status = diff_d < thres_d and diff_a < thres_a
   return (status, diff_d, diff_a)
 
+def takeClosestIdx(myList, myNumber):
+    """
+    Assumes myList is sorted. Returns the idx of the closest value to myNumber.
+
+    If two numbers are equally close, return the smallest number.
+    """
+    pos = bisect_left(myList, myNumber)
+    if pos == 0:
+      return pos
+    if pos == len(myList):
+      return pos
+    before = myList[pos - 1]
+    after = myList[pos]
+    if after - myNumber < myNumber - before:
+      return pos#after
+    else:
+      return pos-1#before
+    
 def takeClosest(myList, myNumber):
     """
     Assumes myList is sorted. Returns closest value to myNumber.
