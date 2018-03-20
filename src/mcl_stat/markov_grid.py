@@ -32,8 +32,11 @@ def read_markov_bag(filename = '/home/jolly/ex4/topleft/markov/markov_mp2000_ri1
     _,idcs,_ = mkbag.read_messages(topics=markov_topics[0]).next()
     _,poss,_ = mkbag.read_messages(topics=markov_topics[1]).next()
     hist = []
-    for top,msg,t in mkbag.read_messages(topics=markov_topics[2]):
-      hist.append(msg)
+    hist_itr = mkbag.read_messages(topics=markov_topics[2])
+    _,msg,t = hist_itr.next()
+    hist.append(msg)
+    #for top,msg,t in mkbag.read_messages(topics=markov_topics[2]):
+    #  hist.append(msg)
     mkbag.close()
     size3D = hist[0].array.layout.dim[1].stride
     markovdict = {}
