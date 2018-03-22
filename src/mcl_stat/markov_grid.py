@@ -28,24 +28,27 @@ def read_bag_yaml(filename = '/home/jolly/ex4/topleft/markov/ex4-bag.yaml'):
   return yamldict
 
 def read_markov_bag(filename = '/home/jolly/ex4/topleft/markov/markov_mp2000_ri1_2018-03-05-15-07-59.bag'):
-  with Bag(filename,'r') as mkbag:
+  #with Bag(filename,'r') as mkbag:
+    mkbag = Bag(filename,'r') 
     _,idcs,_ = mkbag.read_messages(topics=markov_topics[0]).next()
     _,poss,_ = mkbag.read_messages(topics=markov_topics[1]).next()
-    hist = []
+    _,msg,t  = mkbag.read_messages(topics=markov_topics[2]).next()
+    #hist = [msg]
     hist_itr = mkbag.read_messages(topics=markov_topics[2])
-    _,msg,t = hist_itr.next()
-    hist.append(msg)
-    #for top,msg,t in mkbag.read_messages(topics=markov_topics[2]):
-    #  hist.append(msg)
-    mkbag.close()
-    size3D = hist[0].array.layout.dim[1].stride
+    hist_count = mkbag.get_message_count(topic_filters=markov_topics[2])
+    #mkbag.close()
+    #size3D = hist[0].array.layout.dim[1].stride
+    size3D = msg.array.layout.dim[1].stride
     markovdict = {}
     markovdict['indices'] = idcs
     markovdict['positions'] = poss
-    markovdict['histograms'] = hist
+    #markovdict['histograms'] = hist
+    markovdict['histograms_generator'] = hist_itr
+    markovdict['histograms_count'] = hist_count
     markovdict['size3D'] = size3D
+    markovdict['bag'] = mkbag
     return markovdict
-  raise IOError('could not read bagfile(%s)' % (filename))
+  #raise IOError('could not read bagfile(%s)' % (filename))
 
 def read_map_yaml(filename = '/home/jolly/ex4/topleft/markov/willowgarage-topleft.yaml'):
   dirname = os.path.dirname(filename)
@@ -77,17 +80,20 @@ def read_pgm_shape(filename = '/home/jolly/ex4/topleft/markov/willowgarage-tople
     assert depth <= 255
     return (width, height)
 
-def msgs2grid(idcsmsg, histmsgs, shape = (500, 683, 4)):
+def msgs2grid(idcsmsg, histmsg, shape = (500, 683, 4)):
+  """
+  shape = (height, width, angular)
+  """
   #check angidx is within the range
   idcsstd = idcsmsg.layout.dim[1].stride
-  histstd = histmsgs[0].array.layout.dim[1].stride
+  histstd = histmsg.array.layout.dim[1].stride
   assert shape[2] == histstd
   grid = np.zeros(shape)
   for i in xrange(0,idcsmsg.layout.dim[0].size):
     x = idcsmsg.data[i*idcsstd + 1]
     y = idcsmsg.data[i*idcsstd]
     for angidx in xrange(0,shape[2]):
-      grid[x,y,angidx] = histmsgs[0].array.data[i*histstd + angidx]
+      grid[x,y,angidx] = histmsg.array.data[i*histstd + angidx]
   return grid
 
 def size3D2ares(size3D):
