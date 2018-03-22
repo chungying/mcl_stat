@@ -4,9 +4,35 @@ import yaml
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from rosbag import Bag
-from math import pi
+from math import pi,floor,log
+from sys import float_info
 
 markov_topics = ['/indices','/positions','/histograms']
+
+def shrink_grid(grid,shrink_scales):
+  shape = (grid.shape[0]/shrink_scales[0], grid.shape[1]/shrink_scales[1], grid.shape[2]/shrink_scales[2])
+  shrink = np.zeros(shape)
+  for a in xrange(shape[0]): 
+    for b in xrange(shape[1]): 
+      for c in xrange(shape[2]): 
+        shrink[a,b,c] = np.sum(grid[a*shrink_scales[0]:(a+1)*shrink_scales[0], b*shrink_scales[1]:(b+1)*shrink_scales[1], c*shrink_scales[2]:(c+1)*shrink_scales[2]])
+  print 'shrink sum is',np.sum(shrink)
+  return shrink
+
+def kld(p1,p2):
+  return np.sum(np.multiply(p1,np.log(p1+float_info.epsilon)-np.log(p2+float_info.epsilon)))
+
+def kld2(p1,p2):
+  kld = 0.0
+  for a in xrange(p1.shape[0]):
+    for b in xrange(p1.shape[1]):
+      for c in xrange(p1.shape[2]):
+        if p1[a,b,c] == 0.0:
+          w = 0.0
+        else:
+          w = p1[a,b,c]*(log(p1[a,b,c]+float_info.epsilon)-log(p2[a,b,c]+float_info.epsilon))
+        kld += w
+  return kld
 
 def read_bag_yaml(filename = '/home/jolly/ex4/topleft/markov/ex4-bag.yaml'):
   dirname = os.path.dirname(filename)
@@ -94,6 +120,8 @@ def msgs2grid(idcsmsg, histmsg, shape = (500, 683, 4)):
     y = idcsmsg.data[i*idcsstd]
     for angidx in xrange(0,shape[2]):
       grid[x,y,angidx] = histmsg.array.data[i*histstd + angidx]
+  total = np.sum(grid)
+  grid = grid/total
   return grid
 
 def size3D2ares(size3D):
@@ -102,13 +130,22 @@ def size3D2ares(size3D):
 def angidx2ang(angidx, size3D):
   return -pi+angidx*size3D2ares(size3D)
 
-def plotgrid(grid):
+def ang2angidx(ang, size3D):
+  return int(floor((ang+pi)/pi * (size3D/2) + 0.5))%size3D
+
+saveIdx=0
+def plotgrid(grid,step=12,saveFlag=False, showFlag=False):
   X,Y = np.meshgrid(np.linspace(0,1,grid.shape[1]),np.linspace(0,1,grid.shape[0]))
   fig = plt.figure(figsize=(18,10))
   ax = fig.add_subplot(111, projection='3d')
-  for i in xrange(grid.shape[2]):
+  for i in xrange(0,grid.shape[2],step):
     offset = angidx2ang(i,grid.shape[2])
     ax.contourf(X, Y, grid[:,:,i], zdir='z', offset=offset)
   ax.set_zlim((angidx2ang(0,grid.shape[2]),angidx2ang(grid.shape[2]-1,grid.shape[2])))
   #print np.array(range(grid.shape[2]))*size3D2ares(grid.shape[2]) - pi
-  plt.show()
+  if saveFlag:
+    global saveIdx
+    plt.savefig('{}.png'.format(saveIdx))
+    saveIdx+=1
+  if showFlag:
+    plt.show()
