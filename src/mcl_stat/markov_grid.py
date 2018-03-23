@@ -6,6 +6,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from rosbag import Bag
 from math import pi,floor,log
 from sys import float_info
+from mcl_stat.mclmap.maputil import *
 
 markov_topics = ['/indices','/positions','/histograms']
 
@@ -16,7 +17,6 @@ def shrink_grid(grid,shrink_scales):
     for b in xrange(shape[1]): 
       for c in xrange(shape[2]): 
         shrink[a,b,c] = np.sum(grid[a*shrink_scales[0]:(a+1)*shrink_scales[0], b*shrink_scales[1]:(b+1)*shrink_scales[1], c*shrink_scales[2]:(c+1)*shrink_scales[2]])
-  print 'shrink sum is',np.sum(shrink)
   return shrink
 
 def kld(p1,p2):
@@ -106,6 +106,31 @@ def read_pgm_shape(filename = '/home/jolly/ex4/topleft/markov/willowgarage-tople
     assert depth <= 255
     return (width, height)
 
+def msgs2grid2(mmap, possmsg, histmsg, shape = (500, 683, 4)):
+  """
+    This function convert poses and histograms messages into a histogram grid with defined shape
+  """
+  poss_std = possmsg.layout.dim[1].stride
+  assert histmsg.array.layout.dim[1].stride == shape[2]
+  grid = np.zeros(shape)
+  for i in xrange(0,possmsg.layout.dim[0].size):
+    pose_x = possmsg.data[i*poss_std]
+    pose_y = possmsg.data[i*poss_std + 1]
+    x,y = map_gxwx(mmap, pose_x), map_gywy(mmap, pose_y)
+    if x >= shape[1]:
+      print 'pose_x',pose_x,'to',x,'is out of bound so using', shape[1]-1,'instead'
+      x = shape[1]-1
+    if y >= shape[0]:
+      print 'pose_y',pose_y,'to',y,'is out of bound so using', shape[0]-1,'instead'
+      y = shape[0]-1
+    if x < 0: x = 0
+    if y < 0: y = 0
+    for angidx in xrange(0,shape[2]):
+      grid[y, x, angidx] = histmsg.array.data[i*shape[2] + angidx]
+  total = np.sum(grid)
+  grid = grid/total
+  return grid
+
 def msgs2grid(idcsmsg, histmsg, shape = (500, 683, 4)):
   """
   shape = (height, width, angular)
@@ -149,3 +174,16 @@ def plotgrid(grid,step=12,saveFlag=False, showFlag=False):
     saveIdx+=1
   if showFlag:
     plt.show()
+
+saveIdx2=0
+def plotgrid2(grid,saveFlag=False,suffix='test',saveIdx=0):
+  for i in xrange(grid.shape[2]):
+    fig = plt.figure(figsize=(18,10))
+    ax = fig.add_subplot(111)
+    offset = angidx2ang(i,grid.shape[2])
+    name = '{}-{}-{}-{}'.format(saveIdx,i,offset,suffix)
+    ax.set_title(name)
+    plt.imshow(grid[:,:,i])
+    if saveFlag:
+      plt.savefig('{}.png'.format(name))
+    plt.close(fig)
