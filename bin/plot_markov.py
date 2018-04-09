@@ -6,7 +6,8 @@ from mcl_stat.markov_grid import *
 from mcl_stat.mclmap import *
 from collections import OrderedDict as od
 
-bagyaml = read_bag_yaml('/home/irlab/ex4/markov/size3Dis72/ex4-markov-72.yaml')
+#bagyaml = read_bag_yaml('/home/irlab/ex4/markov/size3Dis72/ex4-markov-72.yaml')
+bagyaml = read_bag_yaml('/home/jolly/ex3/topleft/markov/ex3-markov-72.yaml')
 #bagyaml = read_bag_yaml('/media/jolly/storejet/ex4/topleft/markov/size3D72.yaml')
 #bagyaml = read_bag_yaml('/home/jolly/ex4/topleft/markov/size3Dis4/ex4-bag.yaml')
 mapyaml = read_map_yaml(bagyaml['mapyaml'])
@@ -26,8 +27,8 @@ numbered = enumerate(markov_dict['histograms_generator'])
 tasks = []
 ######## read target algorithm bag ########
 #mclbagfile = '/home/irlab/.ros/mcmcl_mp2000_ri1_ita1e-2_gamma2_2018-03-22-18-39-18.bag'#good
-mclbagfile = '/home/irlab/.ros/mcl_mp100000_ri1_2018-03-23-11-45-27.bag'#good
-#mclbagfile = '/media/jolly/Local Disk/ex3/topleft/amcl_mp3000_ri1/amcl_mp3000_ri1_2018-02-04-11-55-01.bag'
+#mclbagfile = '/home/irlab/.ros/mcl_mp100000_ri1_2018-03-23-11-45-27.bag'#good
+mclbagfile = '/media/jolly/Local Disk/ex3/topleft/amcl_mp3000_ri1/amcl_mp3000_ri1_2018-02-04-11-55-01.bag'
 truth = od()
 guess = od()
 cloud = od()
@@ -35,9 +36,13 @@ iu.readbag(mclbagfile, truth, guess, cloud)
 
 for idx, (topic, histmsg, t) in numbered:
   ######## Reading markov ########
+  #if idx < 8:
+  #  print 'skipped'
+  #  continue
+  #print 'plotting'
   print 'reading',idx,'-th histogram message...',
-  #markov_grid = msgs2grid(markov_dict['indices'],histmsg,markov_grid_shape)
-  markov_grid = msgs2grid2(mmap, markov_dict['positions'],histmsg,markov_grid_shape)
+  markov_grid = msgs2grid(markov_dict['indices'],histmsg,markov_grid_shape)
+  #markov_grid = msgs2grid2(mmap, markov_dict['positions'],histmsg,markov_grid_shape)
   particle_grid = np.zeros(markov_grid.shape)
   #print 'the first value is',histmsg.array.data[0]
   
@@ -65,19 +70,21 @@ for idx, (topic, histmsg, t) in numbered:
   particle_sum = np.sum(particle_grid)
   print 'particle grid dtype',particle_grid.dtype, ', sum', particle_sum,
   particle_grid = particle_grid / particle_sum
-  plotgrid2(particle_grid, saveFlag=True,saveIdx=idx,suffix='particle')
-  plotgrid2(markov_grid  , saveFlag=True,saveIdx=idx,suffix='markov')
+  #plotgrid3(markov_grid, particle_grid, saveFlag=True,showFlag=False,saveIdx=idx,suffix='flattened')
+  #plotgrid2(particle_grid, saveFlag=True,saveIdx=idx,suffix='particle')
+  plotgrid2(markov_grid, saveFlag=True,saveIdx=idx,suffix='markov')
   #TODO too fine and small
   #plotgrid(particle_grid)
   #plotgrid(markov_grid)
-  #print 'kld of', cldidx,'is', kld(markov_grid,particle_grid)
-  print 'invkld of', cldidx,'is', kld(particle_grid, markov_grid)
-
+  print 'kld of', cldidx,'is', kld(markov_grid,particle_grid),
+  print 'invkld is', kld(particle_grid, markov_grid),
   #TODO shrink 2 or 4 times in all dimensions
   #shrink_scale = (10,10,4)
   #shrink1 = shrink_grid(markov_grid,  shrink_scale)
   #shrink2 = shrink_grid(particle_grid,shrink_scale)
   #plotgrid(shrink2,step=1,saveFlag=True,showFlag=False)
   #print 'kld of', cldidx,'is', kld(shrink1, shrink2)
+  print ''
+
 
 print 'finished reading markov grid with shape ', markov_grid_shape, '. then plotting...'

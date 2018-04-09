@@ -1,7 +1,13 @@
 import numpy as np
 import os
 import yaml
+import matplotlib as mpl
+mpl.use('TkAgg')
 import matplotlib.pyplot as plt
+print 'mpl.get_backgend(): ', mpl.get_backend()
+print 'mpl.rcParams agg.path.chunksize :', mpl.rcParams['agg.path.chunksize']
+mpl.rcParams['agg.path.chunksize'] = 20000
+print 'mpl.rcParams agg.path.chunksize :', mpl.rcParams['agg.path.chunksize']
 from mpl_toolkits.mplot3d import Axes3D
 from rosbag import Bag
 from math import pi,floor,log
@@ -187,3 +193,17 @@ def plotgrid2(grid,saveFlag=False,suffix='test',saveIdx=0):
     if saveFlag:
       plt.savefig('{}.png'.format(name))
     plt.close(fig)
+
+def plotgrid3(grid, part, saveFlag=False, showFlag=False,suffix='test',saveIdx=0):
+  target = grid.flatten()
+  partic = part.flatten()
+  fig, (ax1, ax2) = plt.subplots(figsize=(18, 10), nrows=2)
+  name = '{}_{}'.format(saveIdx,suffix)
+  ax1.plot(target,'b-')
+  ax2.plot(partic,'r-')
+  plt.suptitle(name)
+  if saveFlag:
+    plt.savefig('{}.png'.format(name))
+  if showFlag:
+    plt.show()
+  plt.close(fig)
