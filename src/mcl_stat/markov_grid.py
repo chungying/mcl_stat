@@ -2,6 +2,9 @@ import numpy as np
 import os
 import yaml
 import matplotlib.pyplot as plt
+print 'plt.rcParams agg.path.chunksize  is',plt.rcParams['agg.path.chunksize']
+plt.rcParams['agg.path.chunksize'] = 20000
+print 'plt.rcParams agg.path.chunksize  is',plt.rcParams['agg.path.chunksize']
 from mpl_toolkits.mplot3d import Axes3D
 from rosbag import Bag
 from math import pi,floor,log
