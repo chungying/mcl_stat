@@ -1,13 +1,7 @@
 import numpy as np
 import os
 import yaml
-import matplotlib as mpl
-mpl.use('TkAgg')
 import matplotlib.pyplot as plt
-print 'mpl.get_backgend(): ', mpl.get_backend()
-print 'mpl.rcParams agg.path.chunksize :', mpl.rcParams['agg.path.chunksize']
-mpl.rcParams['agg.path.chunksize'] = 20000
-print 'mpl.rcParams agg.path.chunksize :', mpl.rcParams['agg.path.chunksize']
 from mpl_toolkits.mplot3d import Axes3D
 from rosbag import Bag
 from math import pi,floor,log
@@ -194,16 +188,18 @@ def plotgrid2(grid,saveFlag=False,suffix='test',saveIdx=0):
       plt.savefig('{}.png'.format(name))
     plt.close(fig)
 
-def plotgrid3(grid, part, saveFlag=False, showFlag=False,suffix='test',saveIdx=0):
-  target = grid.flatten()
-  partic = part.flatten()
-  fig, (ax1, ax2) = plt.subplots(figsize=(18, 10), nrows=2)
-  name = '{}_{}'.format(saveIdx,suffix)
-  ax1.plot(target,'b-')
-  ax2.plot(partic,'r-')
-  plt.suptitle(name)
+def plotgrid3(grid, part, saveIdx, saveFlag=False, showFlag=False, suffix='test'):
+  hist1 = grid.flatten()
+  hist2 = part.flatten()
+  fig = plt.figure(figsize=(18,10))
+  name = '{}_{}'.format(saveIdx, suffix)
+  fig.suptitle(name)
+  ax1 = fig.add_subplot(211)
+  ax1.plot(hist1, 'b-')
+  ax2 = fig.add_subplot(212)
+  ax2.plot(hist2, 'r-')
   if saveFlag:
     plt.savefig('{}.png'.format(name))
   if showFlag:
     plt.show()
-  plt.close(fig)
+  plt.close(fig) 
