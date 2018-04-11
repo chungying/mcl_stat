@@ -36,10 +36,10 @@ iu.readbag(mclbagfile, truth, guess, cloud)
 
 for idx, (topic, histmsg, t) in numbered:
   ######## Reading markov ########
-  #if idx < 8:
-  #  print 'skipped'
-  #  continue
-  #print 'plotting'
+  if idx < 12:
+    print 'skipped',idx
+    continue
+  print 'plotting',
   print 'reading',idx,'-th histogram message...',
   markov_grid = msgs2grid(markov_dict['indices'],histmsg,markov_grid_shape)
   #markov_grid = msgs2grid2(mmap, markov_dict['positions'],histmsg,markov_grid_shape)
@@ -70,9 +70,9 @@ for idx, (topic, histmsg, t) in numbered:
   particle_sum = np.sum(particle_grid)
   print 'particle grid dtype',particle_grid.dtype, ', sum', particle_sum,
   particle_grid = particle_grid / particle_sum
-  #plotgrid3(markov_grid, particle_grid, saveFlag=True,showFlag=False,saveIdx=idx,suffix='flattened')
+  plotgrid3(markov_grid, particle_grid, saveFlag=True,showFlag=False,saveIdx=idx,suffix='flattened')
   #plotgrid2(particle_grid, saveFlag=True,saveIdx=idx,suffix='particle')
-  plotgrid2(markov_grid, saveFlag=True,saveIdx=idx,suffix='markov')
+  #plotgrid2(markov_grid, saveFlag=True,saveIdx=idx,suffix='markov')
   #TODO too fine and small
   #plotgrid(particle_grid)
   #plotgrid(markov_grid)
