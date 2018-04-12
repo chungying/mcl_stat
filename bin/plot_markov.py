@@ -68,13 +68,14 @@ for idx, (topic, histmsg, t) in numbered:
   particle_sum = np.sum(particle_grid)
   print 'particle grid dtype',particle_grid.dtype, ', sum', particle_sum,
   particle_grid = particle_grid / particle_sum
-  plotgrid3(markov_grid, particle_grid, saveFlag=True,showFlag=False,saveIdx=idx,suffix='flattened')
+  plotgrid4(markov_grid, particle_grid, saveFlag=True,showFlag=False,saveIdx=idx,suffix='hist')
+  #plotgrid3(markov_grid, particle_grid, saveFlag=True,showFlag=False,saveIdx=idx,suffix='flattened')
   #plotgrid2(particle_grid, saveFlag=True,saveIdx=idx,suffix='particle')
-  plotgrid2(markov_grid, saveFlag=True,saveIdx=idx,suffix='markov')
+  #plotgrid2(markov_grid, saveFlag=True,saveIdx=idx,suffix='markov')
   #plotgrid(particle_grid)
   #plotgrid(markov_grid)
-  print 'kld of', cldidx,'is', kld(markov_grid,particle_grid),
-  print 'invkld of', cldidx,'is', kld(particle_grid, markov_grid),
+  #print 'kld of', cldidx,'is', kld(markov_grid,particle_grid),
+  #print 'invkld of', cldidx,'is', kld(particle_grid, markov_grid),
 
   #TODO shrink 2 or 4 times in all dimensions
   #shrink_scale = (10,10,4)

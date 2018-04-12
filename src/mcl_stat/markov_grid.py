@@ -206,3 +206,29 @@ def plotgrid3(grid, part, saveIdx, saveFlag=False, showFlag=False, suffix='test'
   if showFlag:
     plt.show()
   plt.close(fig) 
+
+def plotgrid4(grid, part, saveIdx, saveFlag=False, showFlag=False, suffix='test'):
+  hist1 = grid.flatten()
+  hist2 = part.flatten()
+  thres1 = np.amax(hist1)
+  thres2 = np.amax(hist2)
+  barwidth = 100.0/hist1.shape[0]
+  fig = plt.figure(figsize=(18,10))
+  name = '{}_{}'.format(saveIdx, suffix)
+  fig.suptitle(name)
+  ax1 = fig.add_subplot(211)
+  ax2 = fig.add_subplot(212)
+  ax1.set_xlim(0,100)
+  ax2.set_xlim(0,100)
+  ax1.set_ylim(0,thres1)
+  ax2.set_ylim(0,thres2)
+  for i, (h1, h2) in enumerate(zip(hist1, hist2)):
+    if h1 > 0.01*thres1:
+      ax1.bar(i*barwidth, h1, barwidth, align='edge')
+    if h2 > 0.01*thres2:
+      ax2.bar(i*barwidth, h2, barwidth, align='edge')
+  if saveFlag:
+    plt.savefig('{}.png'.format(name))
+  if showFlag:
+    plt.show()
+  plt.close(fig) 
