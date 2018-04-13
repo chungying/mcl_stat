@@ -28,7 +28,7 @@ numbered = enumerate(markov_dict['histograms_generator'])
 #for each algorithm and each timestamp
 tasks = []
 ######## read target algorithm bag ########
-mclbagfile = '/media/jolly/Local Disk/ex3/topleft/amcl_mp3000_ri1/amcl_mp3000_ri1_2018-02-04-11-55-01.bag'
+mclbagfile = '/media/jolly/storejet/ex3/topleft/amcl_mp3000_ri1/amcl_mp3000_ri1_2018-02-04-11-55-01.bag'
 truth = od()
 guess = od()
 cloud = od()
