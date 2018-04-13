@@ -10,6 +10,7 @@ from rosbag import Bag
 from math import pi,floor,log
 from sys import float_info
 from mcl_stat.mclmap.maputil import *
+from mcl_stat.util import ori2heading
 
 markov_topics = ['/indices','/positions','/histograms']
 
@@ -232,3 +233,24 @@ def plotgrid4(grid, part, saveIdx, saveFlag=False, showFlag=False, suffix='test'
   if showFlag:
     plt.show()
   plt.close(fig) 
+
+def cloudmsg2grid(cloudmsg, mmap, shape):
+  particle_grid = np.zeros(shape)
+  #convert particle cloud to a grid
+  for pose in cloudmsg.poses:
+    #pose x -> index x
+    #pose y -> index y
+    #pose a -> index a
+    x,y,a = map_gxwx(mmap, pose.position.x), map_gywy(mmap, pose.position.y), ang2angidx(ori2heading(pose.orientation), shape[2])
+    #boundry check
+    if x >= shape[1]: x = shape[1]-1
+    if y >= shape[0]: y = shape[0]-1
+    if a >= shape[2]: a = shape[2]-1
+    if x < 0: x = 0
+    if y < 0: y = 0
+    if a < 0: a = 0
+    particle_grid[y,x,a] +=1
+
+  particle_sum = np.sum(particle_grid)
+  particle_grid = particle_grid / particle_sum
+  return particle_grid
