@@ -92,7 +92,6 @@ def independentTask(idx, histmsg, figIdcs):#global variables: markov_grid_shape,
   #create particle_grid
   particle_grid = cloudmsg2grid(cloud.values()[cldidx], mmap, markov_grid_shape)
 
-  #TODO shrink 10, 10, and 4 times in all dimensions, respectively
   shrink_scale = (5,5,2)
   shrink_markov = shrink_grid(markov_grid, shrink_scale)
   shrink_particle = shrink_grid(particle_grid, shrink_scale)
@@ -101,12 +100,10 @@ def independentTask(idx, histmsg, figIdcs):#global variables: markov_grid_shape,
   figname = plotgrid4(markov_grid, particle_grid, saveFlag=True,showFlag=False,saveIdx=idx,suffix='hist',figure=mainFigs[figIdcs[0]][0])
   mainFigs[figIdcs[0]][1] = 'used'
   mainFigs[figIdcs[0]][2] = figname
-  print 'in thread, lenght of figure0 is {}'.format(len(figures[0]))
   suf = 'hist_shrunk_{}_{}_{}'.format(shrink_markov.shape[0],shrink_markov.shape[1],shrink_markov.shape[2])
-  figname = plotgrid4(shrink_markov, shrink_particle, saveFlag=True,showFlag=False,saveIdx=idx,suffix=suf,figure=figures[1][0])
+  figname = plotgrid4(shrink_markov, shrink_particle, saveFlag=True,showFlag=False,saveIdx=idx,suffix=suf,figure=mainFigs[figIdcs[1]][0])
   mainFigs[figIdcs[1]][1] = 'used'
   mainFigs[figIdcs[1]][2] = figname
-  print 'in thread, lenght of figure1 is {}'.format(len(figures[1]))
 
   #plot color heat map of markov_grid and particle_grid for each angle
   #plotgrid2(markov_grid, saveFlag=True,saveIdx=idx,suffix='markov')
@@ -147,7 +144,6 @@ def process_data(threadIdx):
       KLDs = independentTask(data[0], data[1], data[2])
       #print 'Thread %d finished %d-th task' % (threadIdx, data[0])
       dictLock.acquire()
-      #TODO store klds to dict
       kldDict[data[0]] = KLDs#data[0] is timeIdx
       dictLock.release()
     else:
