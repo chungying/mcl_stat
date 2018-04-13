@@ -208,13 +208,16 @@ def plotgrid3(grid, part, saveIdx, saveFlag=False, showFlag=False, suffix='test'
     plt.show()
   plt.close(fig) 
 
-def plotgrid4(grid, part, saveIdx, saveFlag=False, showFlag=False, suffix='test'):
+def plotgrid4(grid, part, saveIdx, saveFlag=False, showFlag=False, suffix='test', figure=None):
   hist1 = grid.flatten()
   hist2 = part.flatten()
   thres1 = np.amax(hist1)
   thres2 = np.amax(hist2)
   barwidth = 100.0/hist1.shape[0]
-  fig = plt.figure(figsize=(18,10))
+  if figure is None:
+    fig = plt.figure(figsize=(18,10))
+  else:
+    fig = figure
   name = '{}_{}'.format(saveIdx, suffix)
   fig.suptitle(name)
   ax1 = fig.add_subplot(211)
@@ -228,11 +231,12 @@ def plotgrid4(grid, part, saveIdx, saveFlag=False, showFlag=False, suffix='test'
       ax1.bar(i*barwidth, h1, barwidth, align='edge')
     if h2 > 0.01*thres2:
       ax2.bar(i*barwidth, h2, barwidth, align='edge')
-  if saveFlag:
-    plt.savefig('{}.png'.format(name))
-  if showFlag:
-    plt.show()
-  plt.close(fig) 
+  #if saveFlag:
+  #  plt.savefig('{}.png'.format(name))
+  #if showFlag:
+  #  plt.show()
+  #plt.close(fig) 
+  return name
 
 def cloudmsg2grid(cloudmsg, mmap, shape):
   particle_grid = np.zeros(shape)

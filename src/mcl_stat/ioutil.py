@@ -35,11 +35,11 @@ def readbag(bagname, truth=None, guess=None, cloud=None):
       tpcs = [TRUTH, POSE]
       if cloud is not None: tpcs.append(CLOUD)
       for topic, msg, t in bag.read_messages(topics=tpcs):
-        if topic == TRUTH and truth is not None: 
+        if truth is not None and topic == TRUTH: 
           truth[msg.header.stamp] = msg
-        elif topic == POSE and guess is not None: 
+        elif guess is not None and topic == POSE: 
           guess[msg.header.stamp] = msg
-        elif topic == CLOUD and cloud is not None:
+        elif cloud is not None and topic == CLOUD:
           cloud[msg.header.stamp] = msg
     finally:
       bag.close()
@@ -49,10 +49,10 @@ def readbag(bagname, truth=None, guess=None, cloud=None):
   except rosbag.ROSBagFormatException:
     print bagname, " is corrupted."
     return False
-  if len(truth) == 0:
+  if truth is not None and len(truth) == 0:
     print "cannot read", TRUTH
     return False
-  if len(guess) == 0:
+  if guess is not None and len(guess) == 0:
     print "cannot read", POSE
     return False
   if cloud is not None and len(cloud) == 0:
