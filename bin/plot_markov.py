@@ -17,6 +17,8 @@ print 'number of threads is', threadNb
 queueLock = threading.Lock()
 workQueue = Queue.Queue(threadNb)
 threads = []
+dictLock = threading.Lock()
+kldDict={}#(idx, [kld, invkld, shrink kld, shrink inv kld])
 
 def independentTask(idx, histmsg):#global variables: markov_grid_shape, mmap, markov_dict, cloud
   ######## Reading markov ########
@@ -24,26 +26,40 @@ def independentTask(idx, histmsg):#global variables: markov_grid_shape, mmap, ma
   #markov_grid = msgs2grid(markov_dict['indices'],histmsg,markov_grid_shape)
   markov_grid = msgs2grid2(mmap, markov_dict['positions'],histmsg,markov_grid_shape)
 
+  #TODO for each mcl packages cloud
   #find the closest stamp to current
   cldidx = ut.takeClosestIdx(cloud.keys(),histmsg.header.stamp)
   #create particle_grid
   particle_grid = cloudmsg2grid(cloud.values()[cldidx], mmap, markov_grid_shape)
 
+  #TODO shrink 10, 10, and 4 times in all dimensions, respectively
+  shrink_scale = (10,10,4)
+  shrink_markov = shrink_grid(markov_grid, shrink_scale)
+  shrink_particle = shrink_grid(particle_grid, shrink_scale)
+
   #plot histograms of markov_grid and particle_grid
   #plotgrid4(markov_grid, particle_grid, saveFlag=True,showFlag=False,saveIdx=idx,suffix='hist')
+  suf = 'hist_shrunk_{}_{}_{}'.format(shrink_markov.shape[0],shrink_markov.shape[1],shrink_markov.shape[2])
+  plotgrid4(shrink_markov, shrink_particle, saveFlag=True,showFlag=False,saveIdx=idx,suffix=suf)
 
   #plot color heat map of markov_grid and particle_grid for each angle
   #plotgrid2(markov_grid, saveFlag=True,saveIdx=idx,suffix='markov')
   #plotgrid2(particle_grid, saveFlag=True,saveIdx=idx,suffix='particle')
 
-  print 'kld of %d is %f, invkld of %d is %f' % (cldidx, kld(markov_grid,particle_grid), cldidx, kld(particle_grid, markov_grid))
+  #plotgrid(shrink_particle,step=1,saveFlag=True,showFlag=False)
+  #print 'kld of', cldidx,'is', kld(shrink_markov, shrink_particle)
 
-  #TODO shrink 2 or 4 times in all dimensions
-  #shrink_scale = (10,10,4)
-  #shrink1 = shrink_grid(markov_grid,  shrink_scale)
-  #shrink2 = shrink_grid(particle_grid,shrink_scale)
-  #plotgrid(shrink2,step=1,saveFlag=True,showFlag=False)
-  #print 'kld of', cldidx,'is', kld(shrink1, shrink2)
+  klds = (idx, [])
+  #klds[1].append(kld(markov_grid, particle_grid))
+  klds[1].append(kld(particle_grid, markov_grid))
+  #klds[1].append(kld(shrink_markov, shrink_particle))
+  klds[1].append(kld(shrink_particle, shrink_markov))
+
+  output=''
+  for val in klds[1]:
+    output+='{} '.format(val)
+  print '%d-th task klds %s' % (cldidx, output)
+  return klds
 
 def process_data(threadIdx):
   while not exitFlag:
@@ -51,9 +67,13 @@ def process_data(threadIdx):
     if not workQueue.empty():
       data = workQueue.get()
       queueLock.release()
-      print 'Thread %d is working on %d-th task' % (threadIdx, data[0])
-      independentTask(data[0], data[1])
-      print 'Thread %d finished %d-th task' % (threadIdx, data[0])
+      #print 'Thread %d is working on %d-th task' % (threadIdx, data[0])
+      klds = independentTask(data[0], data[1])
+      #print 'Thread %d finished %d-th task' % (threadIdx, data[0])
+      dictLock.acquire()
+      #TODO store klds to dict
+      kldDict[klds[0]] = klds[1]
+      dictLock.release()
     else:
       queueLock.release()
 
@@ -84,10 +104,8 @@ tasks = []
 ######## read target algorithm bag ########
 #mclbagfile = '/media/jolly/storejet/ex3/topleft/amcl_mp3000_ri1/amcl_mp3000_ri1_2018-02-04-11-55-01.bag'
 mclbagfile = '/media/irlab/storejet/ex3/topleft/amcl_mp3000_ri1/amcl_mp3000_ri1_2018-02-04-11-55-01.bag'
-truth = od()
-guess = od()
 cloud = od()
-iu.readbag(mclbagfile, truth, guess, cloud)
+iu.readbag(mclbagfile, cloud=cloud)
 
 #start a thread pool
 for tidx in range(threadNb):
@@ -113,11 +131,11 @@ for idx, (topic, histmsg, t) in numbered:
       continue
     else:
       queueLock.acquire()
-      print 'main thread is putting the %d-th task to workQueue' % (idx)
+      #print 'main thread is putting the %d-th task to workQueue' % (idx)
       workQueue.put((idx, histmsg))
       putFlag = True
       queueLock.release()
-      print 'main thread releasing queueLock'
+      #print 'main thread releasing queueLock'
     #independentTask(idx, histmsg)
 
 # Wait for queue to empty
@@ -133,3 +151,17 @@ for t in threads:
   print "Exiting Thread %d" % (t.threadID)
 
 print 'finished reading markov grid with shape ', markov_grid_shape, '. then plotting...'
+
+kldOd = od(sorted(kldDict.items(), key=lambda k: k[0]))
+lineNo = len(kldOd.values()[0])
+res = np.ndarray((1+lineNo, len(kldOd)))
+for idx, (k,v) in enumerate(kldOd.items()):
+  res[0,idx] = k
+  res[1:,idx] = np.array(v)
+
+import matplotlib.pyplot as plt
+fig = plt.figure(figsize=(18,10))
+fig.suptitle('kld')
+for lineIdx in range(lineNo):
+  plt.plot(res[0,:],res[lineIdx+1,:])
+plt.show()
