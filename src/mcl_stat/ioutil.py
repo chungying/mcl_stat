@@ -19,8 +19,12 @@ def ifsorted(od):
     prev_time = t
   return sortflag
 
-def readbag(bagname, truth=None, guess=None, cloud=None):
+def readbag(bagname, truth=None, guess=None, cloud=None, msg_start_time=None, msg_end_time=None):
   bag = None
+  msg = None
+  if truth is None and guess is None and cloud is None:
+    return
+
   try:
     #read rosbag
     bag = rosbag.Bag(bagname)
@@ -35,6 +39,10 @@ def readbag(bagname, truth=None, guess=None, cloud=None):
       tpcs = [TRUTH, POSE]
       if cloud is not None: tpcs.append(CLOUD)
       for topic, msg, t in bag.read_messages(topics=tpcs):
+        if msg_start_time and msg.header.stamp < msg_start_time: 
+          continue 
+        if msg_end_time and msg.header.stamp > msg_end_time: 
+          continue
         if truth is not None and topic == TRUTH: 
           truth[msg.header.stamp] = msg
         elif guess is not None and topic == POSE: 

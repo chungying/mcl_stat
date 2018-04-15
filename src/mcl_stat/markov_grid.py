@@ -231,11 +231,11 @@ def plotgrid4(grid, part, saveIdx, saveFlag=False, showFlag=False, suffix='test'
       ax1.bar(i*barwidth, h1, barwidth, align='edge')
     if h2 > 0.01*thres2:
       ax2.bar(i*barwidth, h2, barwidth, align='edge')
-  #if saveFlag:
-  #  plt.savefig('{}.png'.format(name))
-  #if showFlag:
-  #  plt.show()
-  #plt.close(fig) 
+  if saveFlag:
+    plt.savefig('{}.png'.format(name))
+  if showFlag:
+    plt.show()
+  plt.close(fig) 
   return name
 
 def cloudmsg2grid(cloudmsg, mmap, shape):

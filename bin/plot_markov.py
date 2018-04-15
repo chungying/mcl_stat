@@ -10,10 +10,9 @@ import threading
 import time
 import multiprocessing
 
-saveFlag=True
 ######## for reading markov histogram ##########
-bagyaml = read_bag_yaml('/media/irlab/storejet/ex3/markov_ex3_parallel/ex3-markov-72.yaml')
-#bagyaml = read_bag_yaml('/media/jolly/storejet/ex3/markov_ex3_parallel/ex3-markov-72.yaml')
+#bagyaml = read_bag_yaml('/media/irlab/storejet/ex3/markov_ex3_parallel/ex3-markov-72.yaml')
+bagyaml = read_bag_yaml('/media/jolly/storejet/ex3/markov_ex3_parallel/ex3-markov-72.yaml')
 mapyaml = read_map_yaml(bagyaml['mapyaml'])
 pgm_shape = read_pgm_shape(mapyaml['pgmfile'])
 markov_dict = read_markov_bag(bagyaml['bagfile'])
@@ -31,7 +30,8 @@ print 'MclMap is',mmap
 kldDict={}#{timeIdcs, {bagIdcs, [kld, shrink kld, ...]} }
 #mclbagfile = '/media/jolly/storejet/ex3/topleft/amcl_mp3000_ri1/amcl_mp3000_ri1_2018-02-04-11-55-01.bag'
 #mclbagfile = '/media/irlab/storejet/ex3/topleft/amcl_mp3000_ri1/amcl_mp3000_ri1_2018-02-04-11-55-01.bag'
-mclbagfile = '/media/irlab/storejet/ex3/topleft/mcl_mp5000_ri1/mcl_mp5000_ri1_2018-02-03-23-08-27.bag'
+#mclbagfile = '/media/irlab/storejet/ex3/topleft/mcl_mp5000_ri1/mcl_mp5000_ri1_2018-02-03-23-08-27.bag'
+mclbagfile = '/media/jolly/storejet/ex3/topleft/mcl_mp5000_ri1/mcl_mp5000_ri1_2018-02-03-23-08-27.bag'
 cloud = od()
 iu.readbag(mclbagfile, cloud=cloud)
 
@@ -42,25 +42,16 @@ bagfiles = []#filenames of bagfiles from argument
 scales=[(5,5,2),(10,10,4)]
 bagkldDict={}#(bagIdx, (timeIdx, [kld, shrink kld...]))
 
+maxQueueSize = 5
 exitFlag = 0
-maxHistMsgNo = 4
-threadNb = 2
-#threadNb = multiprocessing.cpu_count()
+threadNb = 3
+threadNb = multiprocessing.cpu_count()-1
 print 'number of threads is', threadNb
 queueLock = threading.Lock()
-workQueue = Queue.Queue(maxHistMsgNo - threadNb)
+queueSize = maxQueueSize - threadNb
+workQueue = Queue.Queue(queueSize if queueSize > 1 else 1)
 threads = []
 dictLock = threading.Lock()
-
-def updateFigures(mainFigures, saveFlag=False):
-  for fidx, fig in enumerate(mainFigures):
-    if fig[1]=='used':
-      if saveFlag==True and len(fig)==3:
-        print 'saving {}.png'.format(fig[2])
-        plt.savefig('{}.png'.format(fig[2]))
-      print 'closing {}-th figure, saveFlag is {}, fig length is {}'.format(fidx,saveFlag, len(fig))
-      plt.close(fig[0]) 
-      fig[1]='closed'
 
 def BagsTask(timeIdx, histmsg):#global variables: markov_grid_shape, mmap, markov_dict, bagfiles
   ######## Reading markov ########
@@ -81,7 +72,7 @@ def BagsTask(timeIdx, histmsg):#global variables: markov_grid_shape, mmap, marko
 
   return bagsKLD#return all of KLDs of bagfiles
 
-def independentTask(idx, histmsg, figIdcs):#global variables: markov_grid_shape, mmap, markov_dict, cloud
+def independentTask(idx, histmsg):#global variables: markov_grid_shape, mmap, markov_dict, cloud
   ######## Reading markov ########
   #print 'reading',idx,'-th histogram message...',
   #markov_grid = msgs2grid(markov_dict['indices'],histmsg,markov_grid_shape)
@@ -97,13 +88,9 @@ def independentTask(idx, histmsg, figIdcs):#global variables: markov_grid_shape,
   shrink_particle = shrink_grid(particle_grid, shrink_scale)
 
   #plot histograms of markov_grid and particle_grid
-  figname = plotgrid4(markov_grid, particle_grid, saveFlag=True,showFlag=False,saveIdx=idx,suffix='hist',figure=mainFigs[figIdcs[0]][0])
-  mainFigs[figIdcs[0]][1] = 'used'
-  mainFigs[figIdcs[0]][2] = figname
-  suf = 'hist_shrunk_{}_{}_{}'.format(shrink_markov.shape[0],shrink_markov.shape[1],shrink_markov.shape[2])
-  figname = plotgrid4(shrink_markov, shrink_particle, saveFlag=True,showFlag=False,saveIdx=idx,suffix=suf,figure=mainFigs[figIdcs[1]][0])
-  mainFigs[figIdcs[1]][1] = 'used'
-  mainFigs[figIdcs[1]][2] = figname
+  #plotgrid4(markov_grid, particle_grid, saveFlag=True,showFlag=False,saveIdx=idx,suffix='hist')
+  #suf = 'hist_shrunk_{}_{}_{}'.format(shrink_markov.shape[0],shrink_markov.shape[1],shrink_markov.shape[2])
+  #plotgrid4(shrink_markov, shrink_particle, saveFlag=True,showFlag=False,saveIdx=idx,suffix=suf)
 
   #plot color heat map of markov_grid and particle_grid for each angle
   #plotgrid2(markov_grid, saveFlag=True,saveIdx=idx,suffix='markov')
@@ -139,10 +126,8 @@ def process_data(threadIdx):
     if not workQueue.empty():
       data = workQueue.get()
       queueLock.release()
-      #print 'Thread %d is working on %d-th task' % (threadIdx, data[0])
       #KLDs is {badIdcs, [kld, shrink kld, ...]}
-      KLDs = independentTask(data[0], data[1], data[2])
-      #print 'Thread %d finished %d-th task' % (threadIdx, data[0])
+      KLDs = independentTask(data[0], data[1])
       dictLock.acquire()
       kldDict[data[0]] = KLDs#data[0] is timeIdx
       dictLock.release()
@@ -165,14 +150,13 @@ for tidx in range(threadNb):
 
 # Fill the queue
 numbered = enumerate(markov_dict['histograms_generator'])
-mainFigs = []
 for timeIdx, (topic, histmsg, t) in numbered:
   #if timeIdx < 14:
   #  print 'skipped',timeIdx
   #  continue
-  #if timeIdx > 1:
-  #  print 'break',timeIdx
-  #  break
+  if timeIdx > 4:
+    print 'break',timeIdx
+    break
 
   putFlag = False
   while not putFlag:
@@ -182,24 +166,16 @@ for timeIdx, (topic, histmsg, t) in numbered:
     else:
       queueLock.acquire()
       #print 'main thread is putting the %d-th task to workQueue' % (idx)
-      figIdcs = [len(mainFigs), len(mainFigs)+1]
-      for i in range(2):
-        fig = [plt.figure(figsize=(18,10)), 'new', 'figurename']
-        mainFigs.append(fig)
-      workQueue.put((timeIdx, histmsg, figIdcs))
+      workQueue.put((timeIdx, histmsg))
       putFlag = True
       queueLock.release()
       #print 'main thread releasing queueLock'
-    updateFigures(mainFigs, saveFlag)
     #independentTask(timeIdx, histmsg)
 
 # Wait for queue to empty
 while not workQueue.empty():
-  #pass
-  #update figure states
-  updateFigures(mainFigs, saveFlag)
+  pass
 
-updateFigures(mainFigs, saveFlag)
 
 # Notify threads it's time to exit
 exitFlag = 1
@@ -221,9 +197,9 @@ bagNo = len(bagsKLDs)
 #plot a figure for each bag
 res = np.ndarray((bagNo, 1+lineNo, len(kldOd)))
 for idx, (timeIdx, bagsKLDs) in enumerate(kldOd.items()):
-  for bagIdx, lineIdx in bagsKLDs.items():
+  for bagIdx, KLDs in bagsKLDs.items():
     res[bagIdx, 0 , idx] = timeIdx
-    res[bagIdx, 1:, idx] = np.array(v)
+    res[bagIdx, 1:, idx] = np.array(KLDs)
 
 import matplotlib.pyplot as plt
 for bagIdx in range(bagNo):
