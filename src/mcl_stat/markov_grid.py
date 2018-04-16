@@ -48,7 +48,7 @@ def read_bag_yaml(filename = '/home/jolly/ex4/topleft/markov/ex4-bag.yaml'):
   if os.path.isfile(mapfile):
     yamldict['mapyaml'] = mapfile
   else:
-    raise ValueError('could not find map file(%s) in file system.' % (mapfile))
+    raise ValueError('could not find Occupancy Grid Map yaml file(%s) in file system.' % (mapfile))
   assert 'bagfile' in yamldict
   bagfile = '/'.join([dirname, yamldict['bagfile']])
   if os.path.isfile(bagfile):

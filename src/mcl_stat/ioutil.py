@@ -130,6 +130,7 @@ def data2pkl(filename, d):
     pickle.dump(d, out)
   return True
 
+# convert meta information to a string which is used as key of dict
 def obj2key(obj):
   key = '{0}_mp{1}_ri{2}'.format(obj['mclpkg'], obj['mp'], obj['ri'])
   if 'ita' in obj: 
@@ -140,6 +141,7 @@ def obj2key(obj):
     key += '_{}'.format(obj['map'])
   return key
 
+# read mcl statistics from each pickle file of args
 def readpkl(args):
   dims = {'mclpkg': {}, 'mp': {}, 'ri': {}, 'ita': {}, 'gamma': {}}
   objs = {}

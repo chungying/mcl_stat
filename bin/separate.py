@@ -4,6 +4,10 @@ import mcl_stat.ioutil as iu
 import pickle
 FTYPE = '.pkl'
 
+# This is deprecated.
+# cloudstat and mcl statistics was put together in the same pickle file
+# so I use this script to separate cloudstat from mcl statistics
+# after that cloudstat and mcl statistics are saved in MCLNAME.pkl and MCLNAME_cloudstat.pkl respectively
 if __name__=='__main__':
   if len(sys.argv) != 2:
     print 'please enter only one pkl filename'

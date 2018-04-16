@@ -286,3 +286,19 @@ def ploteach(fileidx, imgname, timestamp, errmat, plotmat, good_numbers, totals)
   #TODO show flag
   #plt.show()
 
+def plot_kld(lines, timestamps = None, name='plotutil_plot_kld_test', save_flag = False, show_flag = False, abs_output_dir = None):
+  #TODO formatting and font
+  fig = plt.figure(figsize=(18,8))
+  fig_name = name.replace('_',' ')
+  fig.suptitle('kld of {}'.format( fig_name))
+  for line_idx in range(lines.shape[0]):
+    if timestamps is None:
+      plt.plot(range(len(lines[line_idx, :])), lines[line_idx, :])
+    else:
+      plt.plot(timestamps, lines[line_idx, :])
+  if save_flag:
+    output_dir = abs_output_dir if abs_output_dir is not None else './'
+    plt.savefig('{}/{}_kld.png'.format(output_dir, name))
+  if show_flag:
+    plt.show()
+  plt.close(fig)

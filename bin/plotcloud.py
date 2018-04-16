@@ -16,8 +16,8 @@ def help():
 if __name__=='__main__':
   #dims, objs = iu.readpkl(args)
   folder = '.'
-  parser = argparse.ArgumentParser(description='Plot particle cloud statistics.')
-  parser.add_argument('-p','--pklfiles', nargs='+', help='<Required> Set flag', required=True)
+  parser = argparse.ArgumentParser(description='Plot particle cloud statistics from pickle files.')
+  parser.add_argument('-p','--pklfiles', nargs='+', help='<Required> A list of pickle files contain cloud statistics suffixing with _cloudstat.pkl', required=True)
   parser.add_argument('-r','--radius', nargs=2, type=float, action='append', help='definition of deprivation radius, (meter degree)', required=True)
   parser.add_argument('--saveflag', action='store_true', required=False)
   args = parser.parse_args()
@@ -31,6 +31,8 @@ if __name__=='__main__':
     metafile = pklfile.replace('_cloudstat','')
     metafiles.append(metafile)
   tuplist = zip(metafiles, pklfiles)
+
+  #TODO make a function for reading pickle files in ioutil
   #plot statistics of degree of deprivation at each timestamp
   #for each cloudpkl
   objs = {}
