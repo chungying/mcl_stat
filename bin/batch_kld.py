@@ -30,14 +30,14 @@ _parallel_flag = True
 #{ rospy.Time, { bag_idx, [kld, shrink kld, ...] } }
 _kld_dict={}
 
-ADMIN_THREAD_NO = 1
+ADMIN_THREAD_NO = 2
 #ADMIN_THREAD_NO = multiprocessing.cpu_count()-1
 QUEUE_SIZE = 1
 MAX_SIZE_OF_HOLDING_MSGS = ADMIN_THREAD_NO + QUEUE_SIZE
 print 'MAX_SIZE_OF_HOLDING_MSGS:', MAX_SIZE_OF_HOLDING_MSGS   
 print 'ADMIN_THREAD_NO:', ADMIN_THREAD_NO
 print 'QUEUE_SIZE:', QUEUE_SIZE     
-MAX_READ_THREAD_NO = 3 # the number of reading threads that each AdminThread can control
+MAX_READ_THREAD_NO = 10 # the number of reading threads that each AdminThread can control
 print 'MAX_READ_THREAD_NO:', MAX_READ_THREAD_NO 
 _admin_threads = []
 _markov_msg_queue_lock = threading.Lock()
@@ -187,9 +187,9 @@ class AdminThread (threading.Thread):
 
 def main():
   ######## reading markov grid histogram bag file##########
-  #bagyaml = read_bag_yaml('/media/irlab/storejet/ex3/markov_ex3_parallel/ex3-markov-72.yaml')
-  #bagyaml = read_bag_yaml('/media/jolly/storejet/ex3/markov_ex3_parallel/ex3-markov-72.yaml')
-  bagyaml = read_bag_yaml('/home/jolly/ex3/topleft/markov/ex3-markov-72.yaml')
+  bagyaml = read_bag_yaml('/media/irlab/storejet/ex3/markov/ex3-markov-72.yaml')
+  #bagyaml = read_bag_yaml('/media/jolly/storejet/ex3/markov/ex3-markov-72.yaml')
+  #bagyaml = read_bag_yaml('/home/jolly/ex3/topleft/markov/ex3-markov-72.yaml')
   mapyaml = read_map_yaml(bagyaml['mapyaml'])
   pgm_shape = read_pgm_shape(mapyaml['pgmfile'])
   global _markov_hist_msg_dict
