@@ -94,6 +94,7 @@ def run_kld_task(thread_idx, exit_event, queue_lock, data_queue):
 #global variables: _markov_grid_hist_shape, _mcl_map, _markov_hist_msg_dict['positions'], _bag_files
 def run_admin_task(admin_thread_idx, time_idx, hist_msg):
   ######## Reading markov ########
+  print 'Thread {} started {}-th task'.format(admin_thread_idx, time_idx)
   markov_grid_hist = msgs2grid2(_mcl_map, _markov_hist_msg_dict['positions'], hist_msg, _markov_grid_hist_shape)
 
   #create a dict for storing klds of _bag_files at this time stamp time_idx
@@ -148,6 +149,8 @@ def run_admin_task(admin_thread_idx, time_idx, hist_msg):
     for thread in kld_threads:
       thread.join()
 
+  print 'Thread {} finished {}-th task'.format(admin_thread_idx, time_idx)
+  
   #return all of kld values of _bag_files at this time_idx
   return kld_of_all_bags_dict
 
