@@ -49,6 +49,7 @@ _exit_flag = 0
 _markov_hist_msg_dict = None
 _markov_grid_hist_shape = None
 _mcl_map = None
+_hdd_disk_flag = False
 
 def calculate_kld_from_bag(bag_filename, hist_msg_stamp, mcl_map, markov_grid_hist_shape, markov_grid_hist):
   #find particle cloud message at the same time as histogram message
@@ -61,14 +62,20 @@ def calculate_kld_from_bag(bag_filename, hist_msg_stamp, mcl_map, markov_grid_hi
 def find_particle_clud_msg(filename, msg_stamp):
   #read particle cloud to particle_cloud_msgs
   particle_cloud_msgs = od()
-  iu.readbag(filename, cloud=particle_cloud_msgs, msg_start_time=msg_stamp, msg_end_time=msg_stamp)
+  if _hdd_disk_flag:
+    iu.read_bag_from_hdd(filename, cloud=particle_cloud_msgs, msg_start_time=msg_stamp, msg_end_time=msg_stamp)
+  else:
+    iu.readbag(filename, cloud=particle_cloud_msgs, msg_start_time=msg_stamp, msg_end_time=msg_stamp)
   #find the closest stamp to current
   if len(particle_cloud_msgs) == 0:
     msg_idx = 0
   elif len(particle_cloud_msgs) >= 1:
     msg_idx = ut.takeClosestIdx(particle_cloud_msgs.keys(),msg_stamp)
   elif len(particle_cloud_msgs) == 0:
-    iu.readbag(filename, cloud=particle_cloud_msgs)
+    if _hdd_disk_flag:
+      iu.read_bag_from_hdd(filename, cloud=particle_cloud_msgs, msg_start_time=msg_stamp, msg_end_time=msg_stamp)
+    else:
+      iu.readbag(filename, cloud=particle_cloud_msgs, msg_start_time=msg_stamp, msg_end_time=msg_stamp)
     msg_idx = ut.takeClosestIdx(particle_cloud_msgs.keys(),msg_stamp)
   return particle_cloud_msgs.values()[msg_idx]
 
@@ -207,6 +214,7 @@ def main():
   parser.add_argument('--save-pkl', action='store_true')
   parser.add_argument('--save-img', action='store_true')
   parser.add_argument('--show-img', action='store_true')
+  parser.add_argument('--read-hdd', action='store_true')
   args = parser.parse_args()
 
   # parse argument _bag_files and _bag_files_dir
@@ -237,6 +245,8 @@ def main():
   save_pkl_flag = args.save_pkl
   show_img_flag = args.show_img 
   save_img_flag = args.save_img 
+  global _hdd_disk_flag
+  _hdd_disk_flag = args.read_hdd
 
   print _bag_files
   print _bag_files_dir
@@ -245,6 +255,7 @@ def main():
   print save_pkl_flag
   print save_img_flag
   print show_img_flag
+  print _hdd_disk_flag
   #return
 
   # create _admin_threads and start them

@@ -1,7 +1,9 @@
 from collections import OrderedDict as od
+import mcl_stat.memutil as mu
 import pickle
 import rosbag
 from os import system as cmd
+from threading import Lock
 TRUTH='/p3dx/base_pose_ground_truth'
 POSE='/mcl_pose'
 CLOUD = '/particlecloud'
@@ -18,6 +20,125 @@ def ifsorted(od):
       break
     prev_time = t
   return sortflag
+
+_disk_lock = Lock()
+#_data_buffer = { bagname, { truth_buf, guess_buf, cloud_buf } }
+_data_buffer = {}
+_buffer_lock = Lock()
+def read_bag_from_hdd(bagname, truth=None, guess=None, cloud=None, msg_start_time=None, msg_end_time=None):
+  #TODO check buffer for the bagname, truth, guess, and cloud between message's start and end timestamps
+  #read-only part
+  #if the condition is met
+  global _data_buffer
+  tmp_truth = None
+  tmp_guess = None
+  tmp_cloud = None
+  if bagname in _data_buffer:
+    #copy data from _data_buffer to truth, guess, cloud
+    readbag_flag = False
+    #truth
+    if truth is not None and len(_data_buffer[bagname]['truth'])>0:
+      for k,v in _data_buffer[bagname]['truth'].items():
+        if k < msg_start_time:
+          continue
+        elif k > msg_end_time:
+          continue
+        truth[k] = v
+    else:
+      readbag_flag = True
+      tmp_truth = od()
+
+    #guess
+    if guess is not None and len(_data_buffer[bagname]['guess'])>0:
+      for k,v in _data_buffer[bagname]['guess'].items():
+        if k < msg_start_time:
+          continue
+        elif k > msg_end_time:
+          continue
+        guess[k] = v
+    else:
+      readbag_flag = True
+      tmp_guess = od()
+
+    #cloud
+    if cloud is not None and len(_data_buffer[bagname]['cloud'])>0:
+      for k,v in _data_buffer[bagname]['cloud'].items():
+        if k < msg_start_time:
+          continue
+        elif k > msg_end_time:
+          continue
+        cloud[k] = v
+    else:
+      readbag_flag = True
+      tmp_cloud = od()
+
+    #return
+    if not readbag_flag:
+      return 
+  
+  if truth is not None and tmp_truth is None:
+    tmp_truth = od()
+  if guess is not None and tmp_guess is None:
+    tmp_guess = od()
+  if cloud is not None and tmp_cloud is None:
+    tmp_cloud = od()
+
+  #the part avoiding HDD contention
+  _disk_lock.acquire()
+  readbag(bagname, tmp_truth, tmp_guess, tmp_cloud, msg_start_time=None, msg_end_time=None)
+  _disk_lock.release()
+
+  #if output has not been updated, update it
+  if truth is not None and tmp_truth is not None and len(truth) == 0:
+    for k,v in tmp_truth.items():
+      if k < msg_start_time:
+        continue
+      elif k > msg_end_time:
+        continue
+      truth[k] = v
+
+  #if output has not been updated, update it
+  if guess is not None and tmp_guess is not None and len(guess) == 0:
+    for k,v in tmp_guess.items():
+      if k < msg_start_time:
+        continue
+      elif k > msg_end_time:
+        continue
+      guess[k] = v
+
+  #if output has not been updated, update it
+  if cloud is not None and tmp_cloud is not None and len(cloud) == 0:
+    for k,v in tmp_cloud.items():
+      if k < msg_start_time:
+        continue
+      elif k > msg_end_time:
+        continue
+      cloud[k] = v
+
+  # check memory usage of current process in percentage
+  # if there is space of system memory for storing those information put them into a buffer
+  if mu.memory_usage() < 70.0:
+    #TODO the part require write privilege
+    _buffer_lock.acquire()
+
+    if bagname not in _data_buffer:
+      _data_buffer[bagname] = { 'truth':od(), 'guess':od(), 'cloud':od() }
+      print '_buffer_lock is acquired and _data_buffer size is {}'.format(len(_data_buffer))
+
+    if tmp_truth is not None and len(_data_buffer[bagname]['truth']) == 0:
+      _data_buffer[bagname]['truth'].clear()
+      _data_buffer[bagname]['truth'].update(tmp_truth)
+
+    if tmp_guess is not None and len(_data_buffer[bagname]['guess']) == 0:
+      _data_buffer[bagname]['guess'].clear()
+      _data_buffer[bagname]['guess'].update(tmp_guess)
+
+    if tmp_cloud is not None and len(_data_buffer[bagname]['cloud']) == 0:
+      _data_buffer[bagname]['cloud'].clear()
+      _data_buffer[bagname]['cloud'].update(tmp_cloud)
+
+    _buffer_lock.release()
+
 
 def readbag(bagname, truth=None, guess=None, cloud=None, msg_start_time=None, msg_end_time=None):
   bag = None
