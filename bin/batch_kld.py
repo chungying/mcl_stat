@@ -37,7 +37,7 @@ MAX_SIZE_OF_HOLDING_MSGS = ADMIN_THREAD_NO + QUEUE_SIZE
 print 'MAX_SIZE_OF_HOLDING_MSGS:', MAX_SIZE_OF_HOLDING_MSGS   
 print 'ADMIN_THREAD_NO:', ADMIN_THREAD_NO
 print 'QUEUE_SIZE:', QUEUE_SIZE     
-MAX_READ_THREAD_NO = 10 # the number of reading threads that each AdminThread can control
+MAX_READ_THREAD_NO = 20 # the number of reading threads that each AdminThread can control
 print 'MAX_READ_THREAD_NO:', MAX_READ_THREAD_NO 
 _admin_threads = []
 _markov_msg_queue_lock = threading.Lock()
@@ -150,7 +150,7 @@ def run_admin_task(admin_thread_idx, time_idx, hist_msg):
         break
       else:
         queue_lock.release()
-        time.sleep(1)
+        #time.sleep(1)
 
     # wait threads to be joined
     for thread in kld_threads:
