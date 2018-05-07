@@ -117,7 +117,7 @@ def read_bag_from_hdd(bagname, truth=None, guess=None, cloud=None, msg_start_tim
 
   # check memory usage of current process in percentage
   # if there is space of system memory for storing those information put them into a buffer
-  if mu.memory_usage() < 70.0:
+  if mu.memory_usage() < 85.0:
     #TODO the part require write privilege
     _buffer_lock.acquire()
 

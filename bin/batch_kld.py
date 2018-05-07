@@ -145,7 +145,7 @@ def run_admin_task(admin_thread_idx, time_idx, hist_msg):
         break
       else:
         queue_lock.release()
-        time.sleep(1)
+        #time.sleep(1)
 
     # wait threads to be joined
     for thread in kld_threads:
