@@ -3,6 +3,7 @@ from matplotlib import gridspec
 import numpy as np
 import re
 from collections import OrderedDict
+import os
 
 plt.rc('text', usetex=True)
 plt.rc('font',**{'family':'serif','serif':['Palatino']})
@@ -302,3 +303,54 @@ def plot_kld(lines, timestamps = None, name='plotutil_plot_kld_test', save_flag 
   if show_flag:
     plt.show()
   plt.close(fig)
+
+
+#TODO implement me!
+#xlabel
+#ylabel
+#suptitle
+def plot_same_mcl_errorbar(start_idx, pkl_dict):
+  #start_idx between 0~3
+  #0:amcl
+  #1:mcl
+  #2:mcmcl
+  #3:mixmcl
+  #sort pkl data according to mcl_pkg, mp, ri
+  fig = plt.figure(figsize=(18,8))
+  plt.subplot(gridspec.GridSpec(1,2,width_ratios=[3,1])[0])
+  plt.ylabel(r'\textrm{kld}')
+  plt.xlabel(r'\textrm{timestamp index}')
+  plt.title(r'\textrm{KLD wrt time with maximum and minimum caps}')
+  for idx in range(start_idx*5,start_idx*5+5,1):
+    timestamps = pkl_dict[idx]['timestamps']
+    legend = os.path.basename(pkl_dict[idx]['bag_files_dir']).replace('_',' ')
+    average = pkl_dict[idx]['bag_lines'].mean(axis=0).flatten()
+    maximum = pkl_dict[idx]['bag_lines'].max(axis=0).flatten()
+    minimum = pkl_dict[idx]['bag_lines'].min(axis=0).flatten()
+    plt.errorbar(range(average.shape[0]),average, yerr=[average-minimum, maximum-average], label=legend, capthick=2,linewidth=2,markersize=10,elinewidth=0.01)
+  plt.legend(loc=2, bbox_to_anchor=(1.05, 1), borderaxespad=0.)
+  plt.show()
+
+def plot_same_mp_errorbar(start_idx, pkl_dict):
+  #start_idx between 0~4
+  #0:mp1000
+  #1:mp2000
+  #2:mp3000
+  #3:mp4000
+  #4:mp5000
+  #sort pkl data according to mcl_pkg, mp, ri
+  fig = plt.figure(figsize=(18,8))
+  plt.subplot(gridspec.GridSpec(1,2,width_ratios=[3,1])[0])
+  plt.ylabel(r'\textrm{kld}')
+  plt.xlabel(r'\textrm{timestamp index}')
+  plt.title(r'\textrm{KLD wrt time with maximum and minimum caps}')
+  for idx in range(start_idx, 20, 5):
+    timestamps = pkl_dict[idx]['timestamps']
+    legend = os.path.basename(pkl_dict[idx]['bag_files_dir']).replace('_',' ')
+    average = pkl_dict[idx]['bag_lines'].mean(axis=0).flatten()
+    maximum = pkl_dict[idx]['bag_lines'].max(axis=0).flatten()
+    minimum = pkl_dict[idx]['bag_lines'].min(axis=0).flatten()
+    plt.errorbar(range(average.shape[0]),average, yerr=[average-minimum, maximum-average], label=legend, capthick=2,linewidth=2,markersize=10,elinewidth=0.01)
+  plt.legend(loc=2, bbox_to_anchor=(1.05, 1), borderaxespad=0.)
+  plt.show()
+

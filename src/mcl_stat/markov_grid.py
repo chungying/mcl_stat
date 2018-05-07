@@ -47,6 +47,7 @@ def read_bag_yaml(filename = '/home/jolly/ex4/topleft/markov/ex4-bag.yaml'):
   mapfile = '/'.join([dirname, yamldict['mapyaml']])
   if os.path.isfile(mapfile):
     yamldict['mapyaml'] = mapfile
+    yamldict.update(read_map_yaml(mapfile))
   else:
     raise ValueError('could not find Occupancy Grid Map yaml file(%s) in file system.' % (mapfile))
   assert 'bagfile' in yamldict
@@ -80,6 +81,13 @@ def read_markov_bag(filename = '/home/jolly/ex4/topleft/markov/markov_mp2000_ri1
     return markovdict
   #raise IOError('could not read bagfile(%s)' % (filename))
 
+def read_markov_bag_from_yaml(filename = '/home/jolly/ex4/topleft/markov/markov_mp2000_ri1_2018-03-05-15-07-59.bag'):
+  bagyaml = read_bag_yaml('/home/jolly/ex3/topleft/markov/ex3-markov-72.yaml')
+  bagyaml.update(read_markov_bag(bagyaml['bagfile']))
+  grid_shape = (bagyaml['height'], bagyaml['width'], bagyaml['size3D'])
+  bagyaml['shape'] = grid_shape
+  return bagyaml
+
 def read_map_yaml(filename = '/home/jolly/ex4/topleft/markov/willowgarage-topleft.yaml'):
   dirname = os.path.dirname(filename)
   yamldict = None
@@ -95,6 +103,7 @@ def read_map_yaml(filename = '/home/jolly/ex4/topleft/markov/willowgarage-toplef
   pgmfile = '/'.join([dirname,yamldict['image']])
   if os.path.isfile(pgmfile):
     yamldict['pgmfile'] = pgmfile
+    yamldict['width'], yamldict['height'] = read_pgm_shape(pgmfile)
   else:
     raise ValueError('could not find pgm file(%s) in file system.' % (pgmfile))
   return yamldict

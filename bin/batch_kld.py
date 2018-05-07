@@ -1,4 +1,10 @@
 #! /usr/bin/env python
+"""
+usage: batch_kld.py [-h] -b BAG_FILES [BAG_FILES ...]
+                    [--output-dir OUTPUT_DIR] [--save-pkl] [--save-img]
+                    [--show-img] [--read-hdd]
+rosrun mcl_stat batch_kld.py -b /media/jolly/localdisk/ex3/topleft/mcl_mp5000_ri1/mcl_mp5000_ri1_2018-02-03-23-08-27.bag /media/jolly/localdisk/ex3/topleft/mcl_mp5000_ri1/mcl_mp5000_ri1_2018-02-03-23-07-05.bag /media/jolly/localdisk/ex3/topleft/mcl_mp5000_ri1/mcl_mp5000_ri1_2018-02-03-23-07-24.bag /media/jolly/localdisk/ex3/topleft/mcl_mp5000_ri1/mcl_mp5000_ri1_2018-02-03-23-07-44.bag --output-dir /media/jolly/localdisk/ex3/topleft/mcl_mp5000_ri1 --save-pkl --save-img --read-hdd
+"""
 import os
 import mcl_stat.ioutil as iu
 import mcl_stat.plotutil as pu
@@ -12,42 +18,31 @@ import threading
 import time
 import argparse
 
-#TODO prefixing globals with an underscope 
-#TODO function names to be like this this_is_a_function(...)
-#TODO variable names to be the same as function names
-#TODO constants with captital words separated by underscopes
+#NOTE prefixing globals with an underscope 
+#NOTE function names to be like this this_is_a_function(...)
+#NOTE variable names to be the same as function names
+#NOTE constants with captital words separated by underscopes
 
 ######## for reading target algorithm bag ########
 # directory of _bag_files
 _bag_files_dir = '/media/jolly/Local Disk/ex3/topleft/mcl_mp5000_ri1'
 #filenames of _bag_files from argument
 _bag_files = ['mcl_mp5000_ri1_2018-02-03-23-08-27.bag','mcl_mp5000_ri1_2018-02-03-23-07-05.bag','mcl_mp5000_ri1_2018-02-03-23-07-24.bag','mcl_mp5000_ri1_2018-02-03-23-07-44.bag']
-_save_flag = False
-_show_flag = True
 _parallel_flag = True
 
 #_kld_dict stores klds at all timestamps of each mcl bagfile 
 #{ rospy.Time, { bag_idx, [kld, shrink kld, ...] } }
 _kld_dict={}
 
-ADMIN_THREAD_NO = 1
-#ADMIN_THREAD_NO = multiprocessing.cpu_count()-1
-QUEUE_SIZE = 1
-MAX_SIZE_OF_HOLDING_MSGS = ADMIN_THREAD_NO + QUEUE_SIZE
-print 'MAX_SIZE_OF_HOLDING_MSGS:', MAX_SIZE_OF_HOLDING_MSGS   
-print 'ADMIN_THREAD_NO:', ADMIN_THREAD_NO
-print 'QUEUE_SIZE:', QUEUE_SIZE     
-MAX_READ_THREAD_NO = 3 # the number of reading threads that each AdminThread can control
-print 'MAX_READ_THREAD_NO:', MAX_READ_THREAD_NO 
+_thread_no_for_bag_files = 3 # the number of reading threads that each AdminThread can control
+_markov_hist_msg_queue = None
 _admin_threads = []
 _markov_msg_queue_lock = threading.Lock()
-_markov_hist_msg_queue = Queue.Queue(QUEUE_SIZE)
 _output_lock = threading.Lock()
 _exit_flag = 0
 
 #global variables that are created in functions
-_markov_hist_msg_dict = None
-_markov_grid_hist_shape = None
+_markov_bag_dict = None
 _mcl_map = None
 _hdd_disk_flag = False
 
@@ -98,11 +93,11 @@ def run_kld_task(thread_idx, exit_event, queue_lock, data_queue):
       data[5].append(kld_value)
   #print 'Thread {} exits'.format(thread_idx)
 
-#global variables: _markov_grid_hist_shape, _mcl_map, _markov_hist_msg_dict['positions'], _bag_files
+#global variables: _mcl_map, _markov_bag_dict['positions'], _bag_files
 def run_admin_task(admin_thread_idx, time_idx, hist_msg):
   ######## Reading markov ########
   print 'Thread {} started {}-th task'.format(admin_thread_idx, time_idx)
-  markov_grid_hist = msgs2grid2(_mcl_map, _markov_hist_msg_dict['positions'], hist_msg, _markov_grid_hist_shape)
+  markov_grid_hist = msgs2grid2(_mcl_map, _markov_bag_dict['positions'], hist_msg, _markov_bag_dict['shape'])
 
   #create a dict for storing klds of _bag_files at this time stamp time_idx
   kld_of_all_bags_dict = {}
@@ -111,7 +106,7 @@ def run_admin_task(admin_thread_idx, time_idx, hist_msg):
       full_path = _bag_files_dir+'/'+bag_file
       kld_of_all_bags_dict[bag_idx] = []
       #without parallelization
-      kld_value = calculate_kld_from_bag(full_path, hist_msg.header.stamp, _mcl_map, _markov_grid_hist_shape, markov_grid_hist)
+      kld_value = calculate_kld_from_bag(full_path, hist_msg.header.stamp, _mcl_map, _markov_bag_dict['shape'], markov_grid_hist)
       #store the result to output
       kld_of_all_bags_dict[bag_idx].append(kld_value)
 
@@ -120,7 +115,7 @@ def run_admin_task(admin_thread_idx, time_idx, hist_msg):
     exit_event = threading.Event()
     queue_lock = threading.Lock()
     data_queue = Queue.Queue()
-    for i in range(MAX_READ_THREAD_NO):
+    for i in range(_thread_no_for_bag_files):
       thread_idx = admin_thread_idx * 10 + i
       thread = threading.Thread(target=run_kld_task, args=(thread_idx, exit_event, queue_lock, data_queue))
       thread.start()
@@ -133,7 +128,7 @@ def run_admin_task(admin_thread_idx, time_idx, hist_msg):
       element_data=(full_path, 
                     hist_msg.header.stamp, 
                     _mcl_map, 
-                    _markov_grid_hist_shape, 
+                    _markov_bag_dict['shape'], 
                     markov_grid_hist,
                     kld_of_all_bags_dict[bag_idx])
       queue_lock.acquire()
@@ -187,34 +182,32 @@ class AdminThread (threading.Thread):
 
 def main():
   ######## reading markov grid histogram bag file##########
-  #bagyaml = read_bag_yaml('/media/irlab/storejet/ex3/markov_ex3_parallel/ex3-markov-72.yaml')
-  #bagyaml = read_bag_yaml('/media/jolly/storejet/ex3/markov_ex3_parallel/ex3-markov-72.yaml')
-  bagyaml = read_bag_yaml('/home/jolly/ex3/topleft/markov/ex3-markov-72.yaml')
-  mapyaml = read_map_yaml(bagyaml['mapyaml'])
-  pgm_shape = read_pgm_shape(mapyaml['pgmfile'])
-  global _markov_hist_msg_dict
-  _markov_hist_msg_dict = read_markov_bag(bagyaml['bagfile'])
-  global _markov_grid_hist_shape
-  _markov_grid_hist_shape = (pgm_shape[1], pgm_shape[0], _markov_hist_msg_dict['size3D'])
+  #TODO make this filename as an argument
+  global _markov_bag_dict
+  #_markov_bag_dict = read_markov_bag_from_yaml('/media/irlab/storejet/ex3/markov_ex3_parallel/ex3-markov-72.yaml')
+  #_markov_bag_dict = read_markov_bag_from_yaml('/media/jolly/storejet/ex3/markov_ex3_parallel/ex3-markov-72.yaml')
+  _markov_bag_dict = read_markov_bag_from_yaml('/home/jolly/ex3/topleft/markov/ex3-markov-72.yaml')
 
   ####### reading map information in the format of MCL map
-  #ares   size3D2ares(size3D)
-  #width  _markov_grid_hist_shape[1]
-  #height _markov_grid_hist_shape[0]
-  #origin_position mapyaml['origin']
-  #resolution mapyaml['resolution']
+  #origin_position _markov_bag_dict['origin']
+  #width  _markov_bag_dict['shape'][1]
+  #height _markov_bag_dict['shape'][0]
+  #ares _markov_bag_dict['shape'][2]
+  #resolution _markov_bag_dict['resolution']
   global _mcl_map
-  _mcl_map = MclMap( mapyaml['origin'][0], mapyaml['origin'][1], mapyaml['resolution'], pgm_shape[0], pgm_shape[1])
+  _mcl_map = MclMap( _markov_bag_dict['origin'][0], _markov_bag_dict['origin'][1], _markov_bag_dict['resolution'], _markov_bag_dict['width'], _markov_bag_dict['height'] )
   print 'MclMap is',_mcl_map
 
   parser = argparse.ArgumentParser(description='Calculate KLD values of bag files against to markov grid histogram')
-  #TODO make --bag-files REQUIRED
-  parser.add_argument('-b','--bag-files', nargs='+', help='<Required> A list of bag files with relative path', required=False)
-  parser.add_argument('--output-dir')
-  parser.add_argument('--save-pkl', action='store_true')
-  parser.add_argument('--save-img', action='store_true')
-  parser.add_argument('--show-img', action='store_true')
-  parser.add_argument('--read-hdd', action='store_true')
+  parser.add_argument('-b','--bag-files', nargs='+', help='<Required> A list of bag files with relative path', required=True)
+  parser.add_argument('--output-dir', help='<Optional> The folder for storing a pickle file of KLD statistics. The default is the folder of the last bag file.')
+  parser.add_argument('--save-pkl', action='store_true', help='<Optional:False> Whether save KLD statistics into a pickle file')
+  parser.add_argument('--save-img', action='store_true', help='<Optional:False> Whether save images of histogram figures')
+  parser.add_argument('--show-img', action='store_true', help='<Optional:False> Whether showing figures when plotting histograms of Grid-based Markov Localization')
+  parser.add_argument('--read-hdd', action='store_true', help='<Optional:False> Whether using a thread as proxy to read bag files in Hard Disk Drive.')
+  parser.add_argument('-tnfmm', '--thread-no-for-kld', default=1, help='<Optional:1> the number of threads taking a markov msg for calculating KLD to all of bag files')
+  parser.add_argument('-qsfmm', '--queue-size-for-markov-msgs', default=1, help='<Optional:1> the size of queue storing markov messages')
+  parser.add_argument('-tnfbf', '--thread-no-for-bag-files', default=3, help='<Optional:3> the number of threads reading each bag file')
   args = parser.parse_args()
 
   # parse argument _bag_files and _bag_files_dir
@@ -248,6 +241,12 @@ def main():
   global _hdd_disk_flag
   _hdd_disk_flag = args.read_hdd
 
+  thread_no_for_kld = args.thread_no_for_kld
+  queue_size_for_markov_msgs = args.queue_size_for_markov_msgs
+  global _thread_no_for_bag_files
+  _thread_no_for_bag_files = args.thread_no_for_bag_files
+  print 'thread_no_for_kld: {}\n_queue_size_for_markov_msgs: {}\n_thread_no_for_bag_files: {}'.format(thread_no_for_kld, queue_size_for_markov_msgs, _thread_no_for_bag_files)
+  
   print _bag_files
   print _bag_files_dir
   print kld_output_name
@@ -259,13 +258,16 @@ def main():
   #return
 
   # create _admin_threads and start them
-  for tidx in range(ADMIN_THREAD_NO):
+  for tidx in range(thread_no_for_kld):
     thread = AdminThread(tidx)
     thread.start()
     _admin_threads.append(thread)
 
   # Fill task to _markov_hist_msg_queue
-  numbered = enumerate(_markov_hist_msg_dict['histograms_generator'])
+  global _markov_hist_msg_queue
+  _markov_hist_msg_queue = Queue.Queue(queue_size_for_markov_msgs)
+  assert(_markov_hist_msg_queue.qsize() is queue_size_for_markov_msgs)
+  numbered = enumerate(_markov_bag_dict['histograms_generator'])
   for time_idx, (topic, hist_msg, t) in numbered:
     #if time_idx < 14:
     #  print 'skipped',time_idx
@@ -302,7 +304,7 @@ def main():
   for t in _admin_threads:
     t.join()
 
-  print 'finished reading markov grid with shape ', _markov_grid_hist_shape, '. then saving ...'
+  print 'finished reading markov grid with shape ', _markov_bag_dict['shape'], '. then saving ...'
 
   ####### plot kld against time of a bagfile ######
   #require: _kld_dict, _bag_files, _bag_files_dir
@@ -326,7 +328,7 @@ def main():
   bag_lines = np.ndarray((bag_number, kld_lines_number, timestamp_number))
   for idx, (time_idx, kld_of_all_bags) in enumerate(sorted_kld_dict.items()):
     # save current timestamp in the term of seconds
-    timestamps[idx] = _kld_dict.keys()[idx].to_sec()
+    timestamps[idx] = sorted_kld_dict.keys()[idx].to_sec()
     # retrive kld_values for each bag at current timestamp time_idx
     for bag_idx, kld_values in kld_of_all_bags.items():
       bag_lines[bag_idx, :, idx] = np.array(kld_values)
@@ -352,3 +354,15 @@ def main():
 if __name__ == '__main__':
   main()
 
+#TODO an example for reading multiple kld_output_name
+#import sys
+#import os
+#import pickle
+#pkl_files = sys.argv[2:]
+#pkl_names = map(lambda pkl_file: os.path.basename(pkl_file).split('.')[0], pkl_files)
+#pkl_input = map(lambda pkl_file: open(pkl_file), pkl_files)
+#dict_list = map(lambda input: pickle.load(input), pkl_input)
+#import mcl_stat.plotutil as pu
+#for i in range(5): pu.plot_same_mcl_errorbar(i, dict_list)
+#for i in range(5): pu.plot_same_mp_errorbar(i, dict_list)
+#

@@ -1,3 +1,8 @@
+"""
+This python script is for modifying old-version pickle files that is without the file name of map.
+addpair.py MAPNAME PKLFILES...
+PKLFILES are the pickle files each of which storing a dictionary without 'map' key.
+"""
 #! /usr/bin/env python
 import sys
 import pickle

@@ -43,8 +43,11 @@ def ori2arr(ori):
   return numpy.array([ori.x, ori.y, ori.z, ori.w])
 
 def ori2heading(ori):
+  '''
+  ori is _geometry_msgs__Quaternion type
+  returns radian of yaw in the interval of [-pi, pi]
+  '''
   ang = q2e(ori2arr(ori))[2]
-  #normalize between -pi~pi
   return atan2(sin(ang), cos(ang))
 
 def msgErr(tpose, gpose):
