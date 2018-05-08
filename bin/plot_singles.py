@@ -1,4 +1,11 @@
 #! /usr/bin/env python
+"""
+This python script analyses statistics of single bag files recording AMCL results respectively.
+please enter names of rosbag files
+mcl_stat.py SAVEFLAG BAG1 BAG2 ...
+When SAVEFLAG is true, save figures for all bag files.
+BAG is the filename of a bag file.
+"""
 import mcl_stat.util as ut
 import mcl_stat.statutil as su
 import mcl_stat.ioutil as iu
@@ -17,6 +24,7 @@ thres_d = 2
 thres_a = pi*15/180
 tfm={True: 'Succeeded', False: 'Failed'}
 
+#TODO Deprecated
 def comphelper(tup, *vartuple):
   print 'in comparition'
   print tup
@@ -24,7 +32,18 @@ def comphelper(tup, *vartuple):
     print var
   return tup[0].to_nsec()
 
+
 def process(bagfile, plotflag = True, errtime=None, clouddict=None):
+  """
+  Reads a bag that records all topics amcl subscribes from and publishes to.
+  Plots a image with eight figures plotted by pu.ploteach.
+  errtime and clouddict are output
+  Additionally, this function returns status, distance_diff, and orientation_diff.
+  status: if True, the final pose of this bagfile is close to the ground truth pose.
+  distance_diff: the distance between the final pose to the ground truth pose.
+  orientation_diff: the orientation difference between the final pose and the ground truth pose.
+  rmse: root mean square position error of this trajectory
+  """
   #read bagfile
   truth = od()
   guess = od()
@@ -128,6 +147,7 @@ def process(bagfile, plotflag = True, errtime=None, clouddict=None):
       plotmat[10, col_idx] = plotmat[5, col_idx] + 2*stddev
       plotmat[11, col_idx] = plotmat[5, col_idx] - 2*stddev
 
+  #TODO confirm the equation of RMSE
   rmsefunc = lambda a: su.sqrt0(a.dot(a)/len(a))
   rmse = rmsefunc(errmat[0,:])
   avged = np.mean(errmat[0,:])
@@ -146,14 +166,16 @@ def process(bagfile, plotflag = True, errtime=None, clouddict=None):
       pu.ploteach(fileIdx, imgname, errtime.keys(), errmat, plotmat, clouddict['good_hyp_number'], clouddict['total_number'])
   return (st[-1], float(errmat[0,-1]), float(errmat[1,-1]), rmse)
 
+#TODO using argparse
 def help():
   print "please enter names of rosbag files"
-  print "mcl_stat.py SAVEFIG BAG1 BAG2 ..."
-  print "When SAVEFIG is true, save figures."
+  print "mcl_stat.py SAVEFLAG BAG1 BAG2 ..."
+  print "When SAVEFLAG is true, save figures."
   print "BAG is the filename of a bag file."
-  
 
 if __name__=='__main__':
+  #TODO make this function main()
+  #TODO using argparse
   if len(sys.argv) == 1:
     help()
     exit(1)
@@ -182,7 +204,7 @@ if __name__=='__main__':
   total = len(bagfiles)
   print "there are ", total, " files."
   sucCount = 0
-  #create dic
+  #create dic for this batch of bag files
   dic = {'list_final_ed':[], 'list_final_ea':[], 'list_rmse':[]}
   errtime_list = []
   clouddict_list = []
@@ -203,6 +225,8 @@ if __name__=='__main__':
   dic['list_errtimestatmat'] = su.errtimestat(errtime_list)
   #cloud stat 
   dic['list_cloudstat'] = su.cloudstat(clouddict_list)
+  #TODO using os.path.basename() or os.path.dirname() to obtain the information of batch name, mp, ri, ita
+  #TODO using a function wrap this part returning a dictionary for updating dic
   batch_name = bagfiles[0].split('_2018',1)[0]
   dic['folder'] = '/'.join(batch_name.split('/')[0:-1])
   words = re.split('[/_]',batch_name)

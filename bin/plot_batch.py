@@ -1,4 +1,7 @@
 #! /usr/bin/env python
+"""
+This python script analyses overall systematic statistics of a batch of bag files recording AMCL results.
+"""
 import sys
 import mcl_stat.plotutil as pu
 import mcl_stat.ioutil as iu
@@ -6,12 +9,11 @@ import matplotlib.pyplot as plt
 anifig, aniax = plt.subplots()
 FTYPE = '.pkl'
 
+#TODO using argparse
 def help():
   print "plot.py [SAVEFLAG] PKLFILES..."
 
-def update(mp):
-  pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[1000], fig=anifig)
-
+#TODO using argparse
 if __name__=='__main__':
   if len(sys.argv) <= 2:
     print 'please enter arguments'

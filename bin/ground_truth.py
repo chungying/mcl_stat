@@ -1,4 +1,8 @@
 #! /usr/bin/env python
+"""
+This python script filters out messages from /tf and /p3dx/base_pose_ground_truth and resets their timestamps.
+e.g. python ground_truth.py INPUT.bag OUTPUT.bag
+"""
 import sys
 import mcl_stat.plotutil as pu
 import mcl_stat.ioutil as iu

@@ -203,12 +203,15 @@ def ploterrtime(objs, saveflag=False, dirpath='.', captype='minmax', alwdmcl=['m
 ROWS = 2
 COLS = 4
 def ploteach(fileidx, imgname, timestamp, errmat, plotmat, good_numbers, totals):
-  # figure 1: trajectory
-  # figure 2: position error
-  # figure 3: heading error
-  # figure 4: x wrt time
-  # figure 5: y wrt time
-  # figure 6: heading wrt time
+  """
+  This function plots 6 figures in one image.
+  figure 1: trajectory
+  figure 2: position error
+  figure 3: heading error
+  figure 4: x wrt time
+  figure 5: y wrt time
+  figure 6: heading wrt time
+  """
   #ploting figures
   fig = plt.figure(fileidx)
   fig.subplots_adjust(hspace=0.4)

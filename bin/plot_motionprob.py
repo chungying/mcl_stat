@@ -1,4 +1,21 @@
 #! /usr/bin/env python
+"""
+usage: plotmotionprob.py [-h] --headings HEADINGS [HEADINGS ...] -L LIMITS
+                         LIMITS -R RESOLUTION [--saveflag]
+
+Plot probability map of motion model.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --headings HEADINGS [HEADINGS ...]
+                        the heading of new poses
+  -L LIMITS LIMITS, --limits LIMITS LIMITS
+                        definition of limits, (minimum maximum)
+  -R RESOLUTION, --resolution RESOLUTION
+                        resolution of each grid axis
+  --saveflag
+
+"""
 import argparse
 import numpy as np
 from math import ceil

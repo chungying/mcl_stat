@@ -1,4 +1,21 @@
 #! /usr/bin/env python
+"""
+Plot particle cloud statistics from pickle files.
+usage: plotcloud.py [-h] -p PKLFILES [PKLFILES ...] -r RADIUS RADIUS
+                    [--saveflag]
+
+Plot particle cloud statistics from pickle files.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p PKLFILES [PKLFILES ...], --pklfiles PKLFILES [PKLFILES ...]
+                        <Required> A list of pickle files contain cloud
+                        statistics suffixing with _cloudstat.pkl
+  -r RADIUS RADIUS, --radius RADIUS RADIUS
+                        definition of deprivation radius, (meter degree)
+  --saveflag            If True, save the ploting into images
+
+"""
 import argparse
 import sys
 import mcl_stat.plotutil as pu
@@ -10,16 +27,13 @@ from math import pi
 from collections import OrderedDict as od
 FTYPE = '.pkl'
 
-def help():
-  print "plotcloud.py [SAVEFLAG] PKLFILES..."
-
 if __name__=='__main__':
   #dims, objs = iu.readpkl(args)
   folder = '.'
   parser = argparse.ArgumentParser(description='Plot particle cloud statistics from pickle files.')
   parser.add_argument('-p','--pklfiles', nargs='+', help='<Required> A list of pickle files contain cloud statistics suffixing with _cloudstat.pkl', required=True)
   parser.add_argument('-r','--radius', nargs=2, type=float, action='append', help='definition of deprivation radius, (meter degree)', required=True)
-  parser.add_argument('--saveflag', action='store_true', required=False)
+  parser.add_argument('--saveflag', action='store_true', required=False, help='If True, save the ploting into images')
   args = parser.parse_args()
   print args.pklfiles
   print args.radius
