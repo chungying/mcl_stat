@@ -1,5 +1,8 @@
 #! /usr/bin/env python
 """
+batch_kld (1)computes kld of a bag file against the ground truth Markov grid histogram,
+(2)saves the kld information into an nd-array,
+(3)plots kld figures respectively.
 usage: batch_kld.py [-h] -b BAG_FILES [BAG_FILES ...]
                     [--output-dir OUTPUT_DIR] [--save-pkl] [--save-img]
                     [--show-img] [--read-hdd]
@@ -52,6 +55,7 @@ def calculate_kld_from_bag(bag_filename, hist_msg_stamp, mcl_map, markov_grid_hi
   #transform the particles to a histomgram
   particle_cloud_grid_hist = cloudmsg2grid(particle_cloud_msg, mcl_map, markov_grid_hist_shape)
   #calculate kld value for this bag at the timestamp
+  #return kld(markov_grid_hist, particle_cloud_grid_hist) #TODO first of kld should be true distribution, second for approximation
   return kld(particle_cloud_grid_hist, markov_grid_hist)
 
 def find_particle_clud_msg(filename, msg_stamp):
@@ -354,15 +358,3 @@ def main():
 if __name__ == '__main__':
   main()
 
-#TODO an example for reading multiple kld_output_name
-#import sys
-#import os
-#import pickle
-#pkl_files = sys.argv[2:]
-#pkl_names = map(lambda pkl_file: os.path.basename(pkl_file).split('.')[0], pkl_files)
-#pkl_input = map(lambda pkl_file: open(pkl_file), pkl_files)
-#dict_list = map(lambda input: pickle.load(input), pkl_input)
-#import mcl_stat.plotutil as pu
-#for i in range(5): pu.plot_same_mcl_errorbar(i, dict_list)
-#for i in range(5): pu.plot_same_mp_errorbar(i, dict_list)
-#

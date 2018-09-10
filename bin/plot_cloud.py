@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 """
 Plot particle cloud statistics from pickle files.
-usage: plotcloud.py [-h] -p PKLFILES [PKLFILES ...] -r RADIUS RADIUS
+usage: plot_cloud.py [-h] -p PKLFILES [PKLFILES ...] -r RADIUS RADIUS
                     [--saveflag]
 
 Plot particle cloud statistics from pickle files.
@@ -13,7 +13,7 @@ optional arguments:
                         statistics suffixing with _cloudstat.pkl
   -r RADIUS RADIUS, --radius RADIUS RADIUS
                         definition of deprivation radius, (meter degree)
-  --saveflag            If True, save the ploting into images
+  --saveflag            If True, save the ploting into images at current folder
 
 """
 import argparse

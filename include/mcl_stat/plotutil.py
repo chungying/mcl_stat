@@ -6,8 +6,8 @@ from collections import OrderedDict
 import os
 
 plt.rc('text', usetex=True)
-plt.rc('font',**{'family':'serif','serif':['Palatino']})
-#plt.rc('font',**{'family':'serif','serif':['Helvetica']})
+#plt.rc('font',**{'family':'serif','serif':['Palatino']})
+plt.rc('font',**{'family':'serif','serif':['Helvetica']})
 
 def kword(obj):
   if obj['mclpkg']=='amcl': return 'o-'
@@ -17,7 +17,10 @@ def kword(obj):
   else: return 'P-'
 
 def plotting(objs, dims, tarvar='mp', alwdmcl=['mcl','amcl','mixmcl','mcmcl'], alwdri=['ri1','ri2'], captype='minmax', saveflag=False, dirpath='.'):
-  "tarvar is target variable. It could be mp, ita, and gamma."
+  """
+  This plots the RMS position error versus target variable.
+  tarvar is target variable which could be mp, ita, and gamma.
+  """
   allLines = {}
   kwords = {}
   errs = {}
@@ -119,6 +122,9 @@ def rad2key(radtup):
   return 'distrad{:.0f}_anglrad{:.0f}'.format(radtup[0], radtup[1])
 
 def plotcloudstat(objs, saveflag=False, dirpath='.', captype='minmax', alwdmcl=['mcl','amcl','mixmcl','mcmcl'], alwdmp=None, alwdrad=None, imgformat='eps'):
+  """
+  This plots deprivation degree figure or health rate figure.
+  """
   fig = plt.figure(figsize=(18,8))
   gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
   plt.subplot(gs[0])
@@ -159,7 +165,10 @@ def plotcloudstat(objs, saveflag=False, dirpath='.', captype='minmax', alwdmcl=[
   return fig
 
 def ploterrtime(objs, saveflag=False, dirpath='.', captype='minmax', alwdmcl=['mcl','amcl','mixmcl','mcmcl'], alwdmp=[10, 100, 1000, 10000]):
-  "captype could be minmax or std."
+  """
+  This plots the RMS error figure against time steps.
+  captype could be minmax or std.
+  """
   fig = plt.figure(figsize=(18,8))
   gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
   plt.subplot(gs[0])
@@ -312,6 +321,26 @@ def plot_kld(lines, timestamps = None, name='plotutil_plot_kld_test', save_flag 
 #xlabel
 #ylabel
 #suptitle
+lcolors=('#ff0000','#00ff44','#0044ff','#ff00ff')
+hcolors=('#770000','#007744','#004477','#770077')
+suptitles_mcl=[
+'AMCL',#amcl 
+'MCL',#mcl 
+'DEMCMCL',#demcmcl
+'MIXMCL' #mixmcl
+]
+suptitles_mp=[
+'1000 Maximum Particles',
+'2000 Maximum Particles',
+'3000 Maximum Particles',
+'4000 Maximum Particles',
+'5000 Maximum Particles'
+]
+
+r=('#ff0000','#ff2222')
+b=('#1f77b4','#1f77b4')
+g=('#1f77b4','#1f77b4')
+import matplotlib.colors as cl
 def plot_same_mcl_errorbar(start_idx, pkl_dict):
   #start_idx between 0~3
   #0:amcl
@@ -319,22 +348,35 @@ def plot_same_mcl_errorbar(start_idx, pkl_dict):
   #2:mcmcl
   #3:mixmcl
   #sort pkl data according to mcl_pkg, mp, ri
-  fig = plt.figure(figsize=(18,8))
-  plt.subplot(gridspec.GridSpec(1,2,width_ratios=[3,1])[0])
-  plt.ylabel(r'\textrm{kld}')
-  plt.xlabel(r'\textrm{timestamp index}')
-  plt.title(r'\textrm{KLD wrt time with maximum and minimum caps}')
-  for idx in range(start_idx*5,start_idx*5+5,1):
-    timestamps = pkl_dict[idx]['timestamps']
+  fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(11.69,8.27))
+  for i,idx in enumerate(range(start_idx*5,start_idx*5+4,1)):#XXX discard mp5000
+    y=i%2
+    x=(i-y)/2
+    idcs=range(pkl_dict[idx]['bag_lines'].shape[2])
+    parts = axes[x,y].violinplot(pkl_dict[idx]['bag_lines'][:,0,:],idcs,showmeans=False,showmedians=True,widths=3,bw_method=0.1)
+    # Make all the violin statistics marks red:
+    for partname in ('cbars','cmins','cmaxes','cmedians'):
+      parts[partname].set_edgecolor(hcolors[start_idx])
+    for vp in parts['bodies']:
+      vp.set_facecolor(lcolors[start_idx])
     legend = os.path.basename(pkl_dict[idx]['bag_files_dir']).replace('_',' ')
-    average = pkl_dict[idx]['bag_lines'].mean(axis=0).flatten()
-    maximum = pkl_dict[idx]['bag_lines'].max(axis=0).flatten()
-    minimum = pkl_dict[idx]['bag_lines'].min(axis=0).flatten()
-    plt.errorbar(range(average.shape[0]),average, yerr=[average-minimum, maximum-average], label=legend, capthick=2,linewidth=2,markersize=10,elinewidth=0.01)
-  plt.legend(loc=2, bbox_to_anchor=(1.05, 1), borderaxespad=0.)
-  plt.show()
+    axes[x,y].set_title(suptitles_mp[i], fontsize=18)
+  for ax in axes.flatten():
+      ax.set_ylabel(r'$\mathrm{D_{KL}}$', fontsize=16)
+      ax.set_xlabel("time step index", fontsize=16)
+      ax.set_xlim([0,70])
+      ax.set_ylim([0,35])
+  #fig.suptitle("Violin Plotting for KLD wrt Time Step Index", fontsize=22)
+  fig.suptitle(suptitles_mcl[start_idx], fontsize=20)
+  fig.subplots_adjust(hspace=0.4)
+  #plt.show()
+  plt.savefig('{}_kld.png'.format(suptitles_mcl[start_idx]))
+  
 
 def plot_same_mp_errorbar(start_idx, pkl_dict):
+  """
+  This plots kld distance against time index.
+  """
   #start_idx between 0~4
   #0:mp1000
   #1:mp2000
@@ -342,18 +384,26 @@ def plot_same_mp_errorbar(start_idx, pkl_dict):
   #3:mp4000
   #4:mp5000
   #sort pkl data according to mcl_pkg, mp, ri
-  fig = plt.figure(figsize=(18,8))
-  plt.subplot(gridspec.GridSpec(1,2,width_ratios=[3,1])[0])
-  plt.ylabel(r'\textrm{kld}')
-  plt.xlabel(r'\textrm{timestamp index}')
-  plt.title(r'\textrm{KLD wrt time with maximum and minimum caps}')
-  for idx in range(start_idx, 20, 5):
-    timestamps = pkl_dict[idx]['timestamps']
+  fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(11.69,8.27))
+  for i,idx in enumerate(range(start_idx, 20, 5)):
+    y=i%2
+    x=(i-y)/2
+    idcs=range(pkl_dict[idx]['bag_lines'].shape[2])
+    parts = axes[x,y].violinplot(pkl_dict[idx]['bag_lines'][:,0,:],idcs,showmeans=False,showmedians=True,widths=3,bw_method=0.1)
+    # Make all the violin statistics marks red:
+    for partname in ('cbars','cmins','cmaxes','cmedians'):
+      parts[partname].set_edgecolor(hcolors[i])
+    for vp in parts['bodies']:
+      vp.set_facecolor(lcolors[i])
     legend = os.path.basename(pkl_dict[idx]['bag_files_dir']).replace('_',' ')
-    average = pkl_dict[idx]['bag_lines'].mean(axis=0).flatten()
-    maximum = pkl_dict[idx]['bag_lines'].max(axis=0).flatten()
-    minimum = pkl_dict[idx]['bag_lines'].min(axis=0).flatten()
-    plt.errorbar(range(average.shape[0]),average, yerr=[average-minimum, maximum-average], label=legend, capthick=2,linewidth=2,markersize=10,elinewidth=0.01)
-  plt.legend(loc=2, bbox_to_anchor=(1.05, 1), borderaxespad=0.)
-  plt.show()
-
+    axes[x,y].set_title(suptitles_mcl[i], fontsize=18)
+  for ax in axes.flatten():
+      ax.set_ylabel(r'$\mathrm{D_{KL}}$', fontsize=16)
+      ax.set_xlabel("time step index", fontsize=16)
+      ax.set_xlim([0,70])
+      ax.set_ylim([0,35])
+  #fig.suptitle("Violin Plotting for KLD wrt Time Step Index", fontsize=22)
+  fig.suptitle(suptitles_mp[start_idx], fontsize=20)
+  fig.subplots_adjust(hspace=0.4)
+  #plt.show()
+  plt.savefig('{}_kld.png'.format(suptitles_mp[start_idx]))
