@@ -348,29 +348,30 @@ def plot_same_mcl_errorbar(start_idx, pkl_dict):
   #2:mcmcl
   #3:mixmcl
   #sort pkl data according to mcl_pkg, mp, ri
-  fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(11.69,8.27))
+  fig, axes = plt.subplots(nrows=4, ncols=1, figsize=(8.27,11.69))
   for i,idx in enumerate(range(start_idx*5,start_idx*5+4,1)):#XXX discard mp5000
-    y=i%2
-    x=(i-y)/2
+    y=i%4
+    x=(i-y)/1
     idcs=range(pkl_dict[idx]['bag_lines'].shape[2])
-    parts = axes[x,y].violinplot(pkl_dict[idx]['bag_lines'][:,0,:],idcs,showmeans=False,showmedians=True,widths=3,bw_method=0.1)
+    parts = axes[i].violinplot(pkl_dict[idx]['bag_lines'][:,0,:],idcs,showmeans=False,showmedians=True,widths=3,bw_method=0.1)
     # Make all the violin statistics marks red:
     for partname in ('cbars','cmins','cmaxes','cmedians'):
       parts[partname].set_edgecolor(hcolors[start_idx])
     for vp in parts['bodies']:
       vp.set_facecolor(lcolors[start_idx])
     legend = os.path.basename(pkl_dict[idx]['bag_files_dir']).replace('_',' ')
-    axes[x,y].set_title(suptitles_mp[i], fontsize=18)
+    axes[i].set_title(suptitles_mp[i], fontsize=18)
   for ax in axes.flatten():
-      ax.set_ylabel(r'$\mathrm{D_{KL}}$', fontsize=16)
-      ax.set_xlabel("time step index", fontsize=16)
-      ax.set_xlim([0,70])
-      ax.set_ylim([0,35])
+    ax.grid(linestyle='-')
+    ax.set_ylabel(r'$\mathrm{D_{KL}}$', fontsize=16)
+    ax.set_xlim([0,70])
+    ax.set_ylim([0,35])
+  axes.flatten()[-1].set_xlabel("time step index", fontsize=16)
   #fig.suptitle("Violin Plotting for KLD wrt Time Step Index", fontsize=22)
   fig.suptitle(suptitles_mcl[start_idx], fontsize=20)
   fig.subplots_adjust(hspace=0.4)
   #plt.show()
-  plt.savefig('{}_kld.png'.format(suptitles_mcl[start_idx]))
+  plt.savefig('{}_kld.eps'.format(suptitles_mcl[start_idx].replace(' ','_')), format='eps',dpi=600)
   
 
 def plot_same_mp_errorbar(start_idx, pkl_dict):
@@ -384,26 +385,27 @@ def plot_same_mp_errorbar(start_idx, pkl_dict):
   #3:mp4000
   #4:mp5000
   #sort pkl data according to mcl_pkg, mp, ri
-  fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(11.69,8.27))
+  fig, axes = plt.subplots(nrows=4, ncols=1, figsize=(8.27,11.69))
   for i,idx in enumerate(range(start_idx, 20, 5)):
-    y=i%2
-    x=(i-y)/2
+    y=i%4
+    x=(i-y)/1
     idcs=range(pkl_dict[idx]['bag_lines'].shape[2])
-    parts = axes[x,y].violinplot(pkl_dict[idx]['bag_lines'][:,0,:],idcs,showmeans=False,showmedians=True,widths=3,bw_method=0.1)
+    parts = axes[i].violinplot(pkl_dict[idx]['bag_lines'][:,0,:],idcs,showmeans=False,showmedians=True,widths=3,bw_method=0.1)
     # Make all the violin statistics marks red:
     for partname in ('cbars','cmins','cmaxes','cmedians'):
       parts[partname].set_edgecolor(hcolors[i])
     for vp in parts['bodies']:
       vp.set_facecolor(lcolors[i])
     legend = os.path.basename(pkl_dict[idx]['bag_files_dir']).replace('_',' ')
-    axes[x,y].set_title(suptitles_mcl[i], fontsize=18)
+    axes[i].set_title(suptitles_mcl[i], fontsize=18)
   for ax in axes.flatten():
-      ax.set_ylabel(r'$\mathrm{D_{KL}}$', fontsize=16)
-      ax.set_xlabel("time step index", fontsize=16)
-      ax.set_xlim([0,70])
-      ax.set_ylim([0,35])
+    ax.grid(linestyle='-')
+    ax.set_ylabel(r'$\mathrm{D_{KL}}$', fontsize=16)
+    ax.set_xlim([0,70])
+    ax.set_ylim([0,35])
+  axes.flatten()[-1].set_xlabel("time step index", fontsize=16)
   #fig.suptitle("Violin Plotting for KLD wrt Time Step Index", fontsize=22)
   fig.suptitle(suptitles_mp[start_idx], fontsize=20)
   fig.subplots_adjust(hspace=0.4)
   #plt.show()
-  plt.savefig('{}_kld.png'.format(suptitles_mp[start_idx]))
+  plt.savefig('{}_kld.eps'.format(suptitles_mp[start_idx].replace(' ','_')), format='eps',dpi=600)
