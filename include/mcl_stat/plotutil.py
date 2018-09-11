@@ -321,13 +321,13 @@ def plot_kld(lines, timestamps = None, name='plotutil_plot_kld_test', save_flag 
 #xlabel
 #ylabel
 #suptitle
-lcolors=('#ff0000','#00ff44','#0044ff','#ff00ff')
-hcolors=('#770000','#007744','#004477','#770077')
+lcolors=('#00ff44','#ff0000','#ff00ff','#0044ff')
+hcolors=('#007744','#770000','#770077','#004477')
 suptitles_mcl=[
-'AMCL',#amcl 
 'MCL',#mcl 
-'DEMCMCL',#demcmcl
-'MIXMCL' #mixmcl
+'AMCL',#amcl 
+'MIXMCL',#mixmcl
+'DEMCMCL'#demcmcl
 ]
 suptitles_mp=[
 '1000 Maximum Particles',
