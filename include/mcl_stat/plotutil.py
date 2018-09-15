@@ -8,13 +8,35 @@ import os
 plt.rc('text', usetex=True)
 #plt.rc('font',**{'family':'serif','serif':['Palatino']})
 plt.rc('font',**{'family':'serif','serif':['Helvetica']})
-
+labelsize=16
+titlesize=18
+figuresize=(8.27,5.5)#(8.27,11.69)
 def kword(obj):
-  if obj['mclpkg']=='amcl': return 'o-'
+  if obj['mclpkg']=='mcl': return 'v:'
+  elif obj['mclpkg']=='amcl': return 'o-'
   elif obj['mclpkg']=='mixmcl': return '*--'
   elif obj['mclpkg']=='mcmcl': return '^-.'
-  elif obj['mclpkg']=='mcl': return 'v:'
   else: return 'P-'
+
+def mcl2order(obj):
+  if obj['mclpkg']=='mcl': return 1
+  elif obj['mclpkg']=='amcl': return 2
+  elif obj['mclpkg']=='mixmcl': return 3
+  elif obj['mclpkg']=='mcmcl': return 4
+  else: return 'UNKNOWN'
+def mcl2name(obj):
+  if obj['mclpkg']=='mcl': return 'MCL'
+  elif obj['mclpkg']=='amcl': return 'AMCL'
+  elif obj['mclpkg']=='mixmcl': return 'MIXMCL'
+  elif obj['mclpkg']=='mcmcl': return 'DEMCMCL'
+  else: return 'UNKNOWN'
+
+def mcl2color(obj):
+  if obj['mclpkg']=='mcl': return '#00ff00'
+  elif obj['mclpkg']=='amcl': return '#ff0000'
+  elif obj['mclpkg']=='mixmcl': return '#ff00ff'
+  elif obj['mclpkg']=='mcmcl': return '#0000ff'
+  else: return '#000000'
 
 def plotting(objs, dims, tarvar='mp', alwdmcl=['mcl','amcl','mixmcl','mcmcl'], alwdri=['ri1','ri2'], captype='minmax', saveflag=False, dirpath='.'):
   """
@@ -23,6 +45,8 @@ def plotting(objs, dims, tarvar='mp', alwdmcl=['mcl','amcl','mixmcl','mcmcl'], a
   """
   allLines = {}
   kwords = {}
+  kcolors = {}
+  klegends = {}
   errs = {}
   yerrdict = {}
   yerrs = {}
@@ -53,6 +77,15 @@ def plotting(objs, dims, tarvar='mp', alwdmcl=['mcl','amcl','mixmcl','mcmcl'], a
       errs[linek] = {}
       yerrdict[linek] = {}
       kwords[linek] = kword(obj)
+      kcolors[linek] = mcl2color(obj)
+      if tarvar == 'mp': 
+        klegends[linek]=mcl2name(obj)
+      if tarvar == 'ita': 
+        klegends[linek]=linek.replace('_',' ')
+      if tarvar == 'gamma': 
+        klegends[linek]=linek.replace('_',' ')
+
+
     #TODO parameterize list_final_ed and list_rmse
     #allLines[linek][valuex] = np.mean(obj['list_rmse'])
     #errs[linek][valuex] = np.std(obj['list_rmse'])
@@ -73,59 +106,82 @@ def plotting(objs, dims, tarvar='mp', alwdmcl=['mcl','amcl','mixmcl','mcmcl'], a
     for key, tupvalue in yerrdict[lk].iteritems():
       yerrs[lk][0].append(tupvalue[0][0])
       yerrs[lk][1].append(tupvalue[1][0])
-  fig = plt.figure(figsize=(18,8))
-  gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
-  axes = plt.subplot(gs[0])
+  #start plotting
+  #fig = plt.figure(figsize=(18,8))
+  fig = plt.figure(figsize=figuresize)
+  # generate the string of x label
   xlbl = None
   if tarvar == 'mp': 
-    xlbl = r'\textrm{maximum number of particles}'
+    xlbl = r'\textrm{Maximum number of particles}'
   if tarvar == 'ita': 
-    xlbl = r'\textrm{dual normalizer }\eta'
-    axes.set_xscale('log',nonposx='clip')
+    xlbl = r'\textrm{Dual normalizer }\eta'
   if tarvar == 'gamma': 
     xlbl = r'\textrm{DEMC step size gamma}'
-  plt.xlabel('${}$'.format(xlbl))
-  plt.ylabel(r'\textrm{RMS position error (meter)}')
+
+  # generate title string and ratio the plot
   if captype == 'std':
     title = r'\textrm{RMS position error wrt }' + xlbl + r'\textrm{ with standard deviation cap}'
+    gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
+    axes = plt.subplot(gs[0])
   elif captype == 'minmax':
     title = r'\textrm{RMS position error wrt }' + xlbl + r'\textrm{ with minimum and maximum caps}'
+    gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
+    axes = plt.subplot(gs[0])
+    if tarvar == 'ita': 
+      axes.set_xscale('log',nonposx='clip')
+  else:
+    title = r'\textrm{RMS position error wrt }' + xlbl
 
-  plt.title('${}$'.format(title))
+  #XXX
+  #plt.title('${}$'.format(title),fontsize=titlesize)
+  plt.xlabel('${}$'.format(xlbl),fontsize=labelsize)
+  plt.ylabel(r'\textrm{RMS position error}',fontsize=labelsize)
+
+  # start plotting lines
   for k,v in allLines.items():
-    legend = r'{}'.format(k.replace('_',' '))
+    #legend = r'{}'.format(k.replace('_',' '))
     if captype == 'std':
-      plt.errorbar(v.keys(), v.values(), yerr=errs[k].values(), fmt=kwords[k], label=legend, capsize=10, capthick=2, linewidth=2, markersize=10)
+      plt.errorbar(v.keys(), v.values(), yerr=errs[k].values(), fmt=kwords[k], label=klegends[k], capsize=10, capthick=2, linewidth=2, markersize=10)
+      plt.legend(loc=2, bbox_to_anchor=(1.05, 1), borderaxespad=0.)
     elif captype == 'minmax':
-      plt.errorbar(v.keys(), v.values(), yerr=yerrs[k], fmt=kwords[k], label=legend, capsize=10, capthick=2, linewidth=2, markersize=10)
+      plt.errorbar(v.keys(), v.values(), yerr=yerrs[k], fmt=kwords[k], label=klegends[k], capsize=10, capthick=2, linewidth=2, markersize=10)
+      plt.legend(loc=2, bbox_to_anchor=(1.05, 1), borderaxespad=0.)
     else:
-      plt.errorbar(v.keys(), v.values(), yerr=errs[k].values(), fmt=kwords[k], label=legend, capsize=10, capthick=2, linewidth=2, markersize=10)
-      captype = 'std'
-  axes.autoscale(enable=True,tight=False)
-  #xmin, xmax = plt.xlim()
-  #plt.xlim(xmin, xmax+500)
-  plt.legend(loc=2, bbox_to_anchor=(1.05, 1), borderaxespad=0.)
-  plt.show()
+      plt.plot(v.keys(), v.values(), kwords[k], color=kcolors[k], label=klegends[k], linewidth=1, markersize=5)
+      plt.legend()
+
+  plt.autoscale(enable=True,tight=False)
+  if captype == 'std':
+    plt.legend(loc=2, bbox_to_anchor=(1.05, 1), borderaxespad=0.)
+  elif captype == 'minmax':
+    plt.legend(loc=2, bbox_to_anchor=(1.05, 1), borderaxespad=0.)
+  else:
+    #plt.legend(loc=2, bbox_to_anchor=(1.0, 1), borderaxespad=0.)
+    plt.legend(fontsize=labelsize)
+
   if saveflag:
     namelist = []
     namelist.extend(alwdmcl)
     namelist.extend(map(str, alwdri))
     namelist.append(captype)
     filename = '_'.join(namelist)
-    filepath = '{}/{}.png'.format(dirpath,filename)
-    plt.savefig(filepath, format='png')
+    filepath = '{}/{}.pdf'.format(dirpath,filename)
+    plt.savefig(filepath, format='pdf')
     print 'saving file',filepath
+  else:
+    plt.show()
   plt.close(fig)
   return fig
 
 def rad2key(radtup):
   return 'distrad{:.0f}_anglrad{:.0f}'.format(radtup[0], radtup[1])
 
-def plotcloudstat(objs, saveflag=False, dirpath='.', captype='minmax', alwdmcl=['mcl','amcl','mixmcl','mcmcl'], alwdmp=None, alwdrad=None, imgformat='eps'):
+def plotcloudstat(objs, saveflag=False, dirpath='.', captype='minmax', alwdmcl=['mcl','amcl','mixmcl','mcmcl'], alwdmp=None, alwdrad=None, imgformat='pdf'):
   """
   This plots deprivation degree figure or health rate figure.
   """
-  fig = plt.figure(figsize=(18,8))
+  #fig = plt.figure(figsize=(18,8))
+  fig = plt.figure(figsize=figuresize)
   gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
   plt.subplot(gs[0])
   if captype == 'minmax':
@@ -164,39 +220,84 @@ def plotcloudstat(objs, saveflag=False, dirpath='.', captype='minmax', alwdmcl=[
   plt.close(fig)
   return fig
 
-def ploterrtime(objs, saveflag=False, dirpath='.', captype='minmax', alwdmcl=['mcl','amcl','mixmcl','mcmcl'], alwdmp=[10, 100, 1000, 10000]):
+def plot_rms_position_error(objs, saveflag=False, dirpath='.', alwdmcl=['mcl','amcl','mixmcl','mcmcl'], alwdmp=[1000, 2000, 3000, 4000, 5000]):
+  """
+  This plots the RMS error figure against time steps.
+  """
+  fig = plt.figure(figsize=figuresize)
+  #gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
+  #plt.subplot(gs[0])
+  handle_dic={}
+  legend_dic={}
+  for objk, obj in objs.iteritems():
+    if obj['mclpkg'] not in alwdmcl or obj['mp'] not in alwdmp or obj['ri'] != 1:
+      continue
+    #legend = r'{}'.format(objk.replace('_',' '))
+    legend = ''
+    if len(alwdmcl)>1:
+      legend = legend + '{}'.format(mcl2name(obj))
+    if len(alwdmp)>1:
+      legend = legend + '{}'.format(obj['mp'])
+    mat = obj['list_errtimestatmat']
+    #timestep, RMS error
+    key='{}_{}'.format(mcl2order(obj),obj['mp'])
+    #handle_dic[key]=plt.plot(mat[0,:], np.sqrt(mat[5,:]), kword(obj), color=mcl2color(obj), label=legend, linewidth=1, markersize=5)[0]
+    handle_dic[key]=plt.plot(mat[0,:], np.sqrt(mat[5,:]), label=legend, linewidth=1, markersize=5)[0]
+    legend_dic[key]=legend
+  plt.xlabel('Time (second)',fontsize=labelsize)
+  plt.ylabel('RMS position error (metre)',fontsize=labelsize)
+  #plt.title('RMS position error wrt time')
+  #plt.legend(loc=2, bbox_to_anchor=(1.0, 1), borderaxespad=0.)
+  handle_od=OrderedDict(sorted(handle_dic.items(), key=lambda k:k[0]))
+  legend_od=OrderedDict(sorted(legend_dic.items(), key=lambda k:k[0]))
+  print type(handle_od.values()[0])
+  print legend_od.values()[0],type(legend_od.values()[0])
+  plt.legend(handle_od.values(),legend_od.values())
+  if saveflag:
+    namelist = []
+    namelist.extend(alwdmcl)
+    namelist.extend(map(str, alwdmp))
+    filename = '_'.join(namelist)
+    filepath = '{}/{}.pdf'.format(dirpath,filename)
+    plt.savefig(filepath, format='pdf')
+  else:
+    plt.show()
+  return fig
+
+def ploterrtime(objs, saveflag=False, dirpath='.', captype='minmax', alwdmcl=['mcl','amcl','mixmcl','mcmcl'], alwdmp=[10, 100, 1000, 10000], errortype='rms'):
   """
   This plots the RMS error figure against time steps.
   captype could be minmax or std.
   """
-  fig = plt.figure(figsize=(18,8))
+  fig = plt.figure(figsize=figuresize)
   gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
   plt.subplot(gs[0])
-  plt.xlabel(r'\textrm{time (second)}')
-  if captype == 'minmax':
-    yer = lambda matrix: matrix[[3,4],:]
-    title = r'position error wrt time with minimum and maximum caps'
-  else:
-    yer = lambda matrix: matrix[2,:]
-    title = r'position error wrt time with standard deviation cap'
-  plt.title(title)
   errtype = None
   for objk, obj in objs.iteritems():
+    legend = r'{}'.format(objk.replace('_',' '))
     if obj['mclpkg'] not in alwdmcl or obj['mp'] not in alwdmp or obj['ri'] != 1:
       continue
     mat = obj['list_errtimestatmat']
-    if mat.shape[0] == 5:
-      err = lambda matrix: matrix[1,:]#ME
-      errtype = r'\textrm{mean position error (meter)}'
-    elif mat.shape[0] == 6:
-      err = lambda matrix: matrix[5,:]#RMSE
-      errtype = r'\textrm{RMS position error (meter)}'
-    legend = r'{}'.format(objk.replace('_',' '))
-    #            timestep, mean err       
-    #            timestep, RMS err       
-    plt.errorbar(mat[0,:], mat[1,:], yerr=yer(mat), fmt=kword(obj), label=legend, capsize=10, capthick=2, linewidth=2, markersize=10)
+    #if mat.shape[0] == 5:
+    if errortype == 'mean':
+      #timestep, mean error
+      plt.errorbar(mat[0,:], mat[1,:], yerr=yer(mat), fmt=kword(obj), label=legend, capsize=10, capthick=2, linewidth=2, markersize=10)
+      errtype = r'mean position error (metre)'
+      if captype == 'minmax':
+        yer = lambda matrix: matrix[[3,4],:]
+        title = r'position error wrt time with minimum and maximum caps'
+      else:
+        yer = lambda matrix: matrix[2,:]
+        title = r'position error wrt time with standard deviation cap'
+    elif errortype == 'rms':
+      #timestep, RMS error
+      plt.errorbar(mat[0,:], np.sqrt(mat[5,:]), fmt=kword(obj), label=legend, capsize=10, capthick=2, linewidth=2, markersize=10)
+      errtype = 'RMS position error (metre)'
+      title = 'RMS position error wrt time'
+  plt.xlabel('time (second)',fontsize=labelsize)
+  plt.ylabel(errtype,fontsize=labelsize)
+  plt.title(title)
   plt.legend(loc=2, bbox_to_anchor=(1.05, 1), borderaxespad=0.)
-  plt.ylabel(errtype)
   if saveflag:
     namelist = []
     namelist.extend(alwdmcl)
@@ -301,7 +402,7 @@ def ploteach(fileidx, imgname, timestamp, errmat, plotmat, good_numbers, totals)
 
 def plot_kld(lines, timestamps = None, name='plotutil_plot_kld_test', save_flag = False, show_flag = False, abs_output_dir = None):
   #TODO formatting and font
-  fig = plt.figure(figsize=(18,8))
+  fig = plt.figure(figsize=figuresize)
   fig_name = name.replace('_',' ')
   fig.suptitle('kld of {}'.format( fig_name))
   for line_idx in range(lines.shape[0]):
@@ -321,7 +422,8 @@ def plot_kld(lines, timestamps = None, name='plotutil_plot_kld_test', save_flag 
 #xlabel
 #ylabel
 #suptitle
-lcolors=('#00ff00','#ff0000','#ff00ff','#0000ff')
+#         green     red       purple    blue
+lcolors=('#00ff00','#ff0000','#ff00ff','#0000ff','#00ffff')
 hcolors=('#00aa00','#aa0000','#aa00aa','#0000aa')
 suptitles_mcl=[
 'MCL',#mcl 
@@ -349,7 +451,7 @@ def plot_same_mcl_errorbar(start_idx, pkl_dict):
   #3:mixmcl
   #sort pkl data according to mcl_pkg, mp, ri
   indices=np.array([0,20,40,-1])
-  fig, axes = plt.subplots(nrows=4, ncols=1, figsize=(8.27,11.69))
+  fig, axes = plt.subplots(nrows=4, ncols=1, figsize=figuresize)
   for i,idx in enumerate(range(start_idx*5,start_idx*5+4,1)):#XXX discard mp5000
     y=i%4
     x=(i-y)/1
@@ -361,7 +463,7 @@ def plot_same_mcl_errorbar(start_idx, pkl_dict):
       vp.set_facecolor(lcolors[start_idx])
       print 'color:',vp.get_facecolor()
     for partname in ('cbars','cmins','cmaxes','cmedians'):
-      parts[partname].set_edgecolor(hcolors[start_idx])
+      parts[partname].set_edgecolor(lcolors[start_idx])
     legend = os.path.basename(pkl_dict[idx]['bag_files_dir']).replace('_',' ')
     axes[i].set_title(suptitles_mp[i], fontsize=18)
   for ax in axes.flatten():
@@ -389,7 +491,7 @@ def plot_same_mp_errorbar(start_idx, pkl_dict):
   #4:mp5000
   #sort pkl data according to mcl_pkg, mp, ri
   indices=np.array([0,20,40,-1])
-  fig, axes = plt.subplots(nrows=4, ncols=1, figsize=(8.27,11.69))
+  fig, axes = plt.subplots(nrows=4, ncols=1, figsize=figuresize)
   for i,idx in enumerate(range(start_idx, 20, 5)):
     y=i%4
     x=(i-y)/1
@@ -399,7 +501,7 @@ def plot_same_mp_errorbar(start_idx, pkl_dict):
 
     # Make all the violin statistics marks red:
     for partname in ('cbars','cmins','cmaxes','cmedians'):
-      parts[partname].set_edgecolor(hcolors[i])
+      parts[partname].set_edgecolor(lcolors[i])
     for vp in parts['bodies']:
       vp.set_facecolor(lcolors[i])
     legend = os.path.basename(pkl_dict[idx]['bag_files_dir']).replace('_',' ')
@@ -431,7 +533,7 @@ def plot_same_timestep_kld_violin(start_idx,pkl_dict):
   #sort pkl data according to mcl_pkg, mp, ri
   timesteps=np.array([0,20,40,67])
   #fig, axes = plt.subplots(nrows=len(timesteps), ncols=1, figsize=(8.27,5.85))
-  fig, axes = plt.subplots(nrows=len(timesteps), ncols=1, figsize=(8.27,5.5))
+  fig, axes = plt.subplots(nrows=len(timesteps), ncols=1, figsize=figuresize)
   #for each timestep ti
   #for aidx,ti in enumerate(timesteps):
   for ti,ax in enumerate(axes):
@@ -440,13 +542,13 @@ def plot_same_timestep_kld_violin(start_idx,pkl_dict):
       #parts = axes[ti].violinplot(pkl_dict[dict_idx]['bag_lines'][:,0,ti],aidx,showmeans=True,showmedians=True,widths=3,bw_method=0.5)
       parts = ax.violinplot(pkl_dict[dict_idx]['bag_lines'][:,0,timesteps[ti]],[mcl+1],showmeans=False,showmedians=True,widths=0.5,bw_method=0.5)
       for partname in ('cbars','cmins','cmaxes','cmedians'):
-        parts[partname].set_edgecolor(hcolors[mcl])
+        parts[partname].set_edgecolor(lcolors[mcl])
       for vp in parts['bodies']:
         vp.set_facecolor(lcolors[mcl])
       legend = os.path.basename(pkl_dict[dict_idx]['bag_files_dir']).replace('_',' ')
-    ax.set_title('Time step {}'.format(timesteps[ti]), fontsize=18)
+    ax.set_title('Time step {}'.format(timesteps[ti]), fontsize=titlesize)
     ax.grid(linestyle='-')
-    ax.set_ylabel(r'$\mathrm{D_{KL}}$', fontsize=16)
+    ax.set_ylabel(r'$\mathrm{D_{KL}}$', fontsize=labelsize)
     #ax.set_ylim([0,35])
     #
     ax.get_xaxis().set_tick_params(direction='out')
@@ -454,7 +556,7 @@ def plot_same_timestep_kld_violin(start_idx,pkl_dict):
     ax.xaxis.set_ticks_position('bottom')
     ax.set_xticks(np.arange(1, len(suptitles_mcl) + 1))
     ax.set_xlim(0.25, len(suptitles_mcl) + 0.75)
-  axes[-1].set_xticklabels(suptitles_mcl, fontsize=16)
+  axes[-1].set_xticklabels(suptitles_mcl, fontsize=labelsize)
   #axes[-1].set_xlabel('Algorithms', fontsize=16)
     #axes[aidx].set_title('KLD distribution at time step {}'.format(ti), fontsize=18)
     #axes[aidx].grid(linestyle='-')
@@ -466,3 +568,4 @@ def plot_same_timestep_kld_violin(start_idx,pkl_dict):
   fig.subplots_adjust(hspace=0.4)
   #plt.show()
   plt.savefig('{}_kld_vs_mcl.pdf'.format(suptitles_mp[start_idx].replace(' ','_')), format='pdf')
+

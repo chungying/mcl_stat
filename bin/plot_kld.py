@@ -9,8 +9,6 @@ from collections import OrderedDict as od
 
 def main():
   pkl_files = []
-  dic={'mcl':{},'amcl':{},'mixmcl':{},'mcmcl':{}}
-  odic=od()
   print sys.argv[1]
   with open(sys.argv[1],'r') as openfile:
     for filename in openfile:
@@ -18,10 +16,12 @@ def main():
   print "Now we have", len(pkl_files),"files"
   
   #pkl_names = map(lambda pkl_file: os.path.basename(pkl_file).split('.')[0], pkl_files) #extract each filename from pkl_files
+  dic={'mcl':{},'amcl':{},'mixmcl':{},'mcmcl':{}}
+  odic=od()
   for i in pkl_files:
     sp=i.split('_')
     dic[sp[0]][sp[1]]=i
-  
+  #sorting the files according to this order
   odic['mcl']=dic['mcl']
   odic['amcl']=dic['amcl']
   odic['mixmcl']=dic['mixmcl']

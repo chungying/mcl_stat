@@ -163,6 +163,7 @@ def process(bagfile, plotflag = True, errtime=None, clouddict=None):
     else:
       imgname += '-failed'
     if errtime is not None:
+      #Save each?
       pu.ploteach(fileIdx, imgname, errtime.keys(), errmat, plotmat, clouddict['good_hyp_number'], clouddict['total_number'])
   return (st[-1], float(errmat[0,-1]), float(errmat[1,-1]), rmse)
 
@@ -223,6 +224,8 @@ if __name__=='__main__':
       errtime_list.append(errtime_dict)
       clouddict_list.append(clouddict)
   dic['list_errtimestatmat'] = su.errtimestat(errtime_list)
+  #errtime_mat = align_errtime(errtime_list)
+  #dic['list_errtimestatmat'] = calculate_errtime_stat_from_errtime_mat(errtime_mat)
   #cloud stat 
   dic['list_cloudstat'] = su.cloudstat(clouddict_list)
   #TODO using os.path.basename() or os.path.dirname() to obtain the information of batch name, mp, ri, ita
@@ -250,3 +253,4 @@ if __name__=='__main__':
   print "saving file:", (batch_name+'.pkl')
   iu.data2pkl(batch_name+'.pkl', dic)
   exit(0)
+

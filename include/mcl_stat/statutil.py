@@ -79,3 +79,45 @@ def errtimestat(errtime_list):
     errtime_mat[:,idx_col] = np.array([time, m, np.std(mat[:,idx_col]), m-np.min(mat[:,idx_col]), np.max(mat[:,idx_col])-m, ms])
   return errtime_mat
 
+def align_errtime(errtime_list):
+  """
+  errtime list is a list of bag results. Each bag result is a dictionary with the format time:error  
+  """
+  longest = (0,len(errtime_list[0]))
+  shortest = (0,len(errtime_list[0]))
+  for i, each in enumerate(errtime_list):
+    length = len(each)
+    if longest[1] < length: longest = (i, length)
+    if shortest[1] > length: shortest = (i,length)
+  if shortest[1] == 0: print "longest:",longest, ", shortest: ", shortest
+  #align all to the timeline of the shortest and produce a matrix
+  rows = len(errtime_list)# rows is the number of bag resutls
+  cols = len(errtime_list[shortest[0]]) # cols is the number of the shortest time steps
+  mat = np.arange(rows*cols,dtype=float).reshape(rows,cols)
+  prev_time = None
+  for time, err in errtime_list[shortest[0]].items():
+    if prev_time is None:
+      prev_time = time
+    else:
+      if prev_time >= time:
+        raise Exception('errtime of {} is not time-ordered'.format(idx_row))
+      prev_time = time
+  for idx_row, each in enumerate(errtime_list):
+    if len(each) != shortest[0]:
+      for idx_col, (time, err) in enumerate(errtime_list[shortest[0]].items()):
+        closestkey = ut.takeClosest(each.keys(), time)
+        mat[idx_row, idx_col] = each[closestkey]
+    else:
+        mat[idx_row, :] = np.array(each.values())
+  #each column is a timestep
+  #produce mean, std, minimum, maximum in a matrix
+  return mat
+
+def calculate_errtime_stat_from_errtime_mat(errtime_mat):
+  errtime_stat = np.arange(6*errtime_mat.shape[1],dtype=float).reshape(6,errtime_mat.shape[1])
+  for idx_col, (time, err) in enumerate(errtime_list[shortest[0]].items()):
+    m = np.mean(errtime_mat[:,idx_col])
+    ms = np.mean(np.square(errtime_mat[:,idx_col]))#mean square
+    errtime_stat[:,idx_col] = np.array([time, m, np.std(errtime_mat[:,idx_col]), m-np.min(errtime_mat[:,idx_col]), np.max(errtime_mat[:,idx_col])-m, ms])
+  return errtime_stat
+

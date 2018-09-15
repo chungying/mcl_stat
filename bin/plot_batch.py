@@ -11,7 +11,6 @@ import sys
 import mcl_stat.plotutil as pu
 import mcl_stat.ioutil as iu
 import matplotlib.pyplot as plt
-anifig, aniax = plt.subplots()
 FTYPE = '.pkl'
 
 #TODO using argparse
@@ -60,41 +59,23 @@ if __name__=='__main__':
     exit(0)
 ###################################
 
-  #readpkl read pickle files with format
+  #readpkl reads pickle files with format from where??TODO
   dims, objs = iu.readpkl(args)
   folder = '//'.join(args[0].split('//')[0:-1])
   if len(folder) == 0: folder = '.'
   #TODO variables mp, ri, ita, gamma
-  #fig = pu.plotting(objs, dims, 'mp', alwdri=['ri1','ri2'])
-  #fig = pu.plotting(objs, dims, 'mp', alwdmcl=['mcl'], alwdri=['ri1','ri2'])
-  #fig = pu.plotting(objs, dims, 'mp', alwdmcl=['amcl'], alwdri=['ri1','ri2'])
-  #fig = pu.plotting(objs, dims, 'mp', alwdmcl=['mixmcl'], alwdri=['ri1','ri2'])
-  #fig = pu.plotting(objs, dims, 'mp', alwdmcl=['mcmcl'], alwdri=['ri1','ri2'])
-  fig = pu.plotting(objs, dims, 'mp', alwdri=['ri1'], saveflag=saveflag, captype='minmax')
-  fig = pu.plotting(objs, dims, 'mp', alwdri=['ri1'], saveflag=saveflag, captype='std')
-  #fig = pu.plotting(objs, dims, 'mp', alwdri=['ri2'])
-  #fig = pu.plotting(objs, dims, 'mp', alwdmcl=['mixmcl','mcmcl'], alwdri=['ri1'])
-  #fig = pu.plotting(objs, dims, 'mp', alwdmcl=['mixmcl','mcmcl'], alwdri=['ri2'])
-  #fig = pu.plotting(objs, dims, 'ita', alwdmcl=['mixmcl'], alwdri=['ri1'], saveflag=saveflag, captype='minmax')
-  #fig = pu.plotting(objs, dims, 'ita', alwdmcl=['mixmcl','mcmcl'], alwdri=['ri1'])
-  #fig = pu.plotting(objs, dims, 'ita', alwdmcl=['mixmcl','mcmcl'], alwdri=['ri2'])
-  #fig = pu.plotting(objs, dims, 'gamma', alwdmcl=['mcmcl'], alwdri=['ri1'])
-  #fig = pu.plotting(objs, dims, 'gamma', alwdmcl=['mcmcl'], alwdri=['ri2'])
+  #fig = pu.plotting(objs, dims, 'mp', alwdri=['ri1'], saveflag=saveflag, captype='minmax')
+  #fig = pu.plotting(objs, dims, 'mp', alwdri=['ri1'], saveflag=saveflag, captype='std')
+  fig = pu.plotting(objs, dims, 'mp', alwdri=['ri1'], saveflag=saveflag, captype='none')
 
-  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmcl=['mcl'])
-  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmcl=['amcl'])
-  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmcl=['mixmcl'])
-  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmcl=['mcmcl'])
-  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[10])
-  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[100])
-  pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[1000])
-  pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[2000])
-  pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[3000])
-  pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[4000])
-  pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[5000])
-  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[6000])
-  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[7000])
-  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[8000])
-  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[9000])
-  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[10000])
+  #pu.plot_rms_position_error(objs, saveflag=saveflag, dirpath=folder, alwdmp=[1000])
+  #pu.plot_rms_position_error(objs, saveflag=saveflag, dirpath=folder, alwdmcl=['mcl'])
+  #pu.plot_rms_position_error(objs, saveflag=saveflag, dirpath=folder, alwdmcl=['amcl'])
+  #pu.plot_rms_position_error(objs, saveflag=saveflag, dirpath=folder, alwdmcl=['mixmcl'])
+  #pu.plot_rms_position_error(objs, saveflag=saveflag, dirpath=folder, alwdmcl=['mcmcl'])
+  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[1000])
+  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[2000])
+  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[3000])
+  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[4000])
+  #pu.ploterrtime(objs, saveflag=saveflag, dirpath=folder, captype='minmax', alwdmp=[5000])
 
