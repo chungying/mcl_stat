@@ -1,6 +1,11 @@
 #! /usr/bin/env python
 """
 This python script analyses overall systematic statistics of a batch of bag files recording AMCL results.
+INPUT: 
+SAVEFLAG show or save figures, True or False
+PKLFILES filenames of pickle files
+OUTPUT: ??
+
 """
 import sys
 import mcl_stat.plotutil as pu
@@ -15,6 +20,9 @@ def help():
 
 #TODO using argparse
 if __name__=='__main__':
+
+
+###########Argument parser########################
   if len(sys.argv) <= 2:
     print 'please enter arguments'
     help()
@@ -50,6 +58,9 @@ if __name__=='__main__':
     print 'only one file'
     #TODO print it not plot
     exit(0)
+###################################
+
+  #readpkl read pickle files with format
   dims, objs = iu.readpkl(args)
   folder = '//'.join(args[0].split('//')[0:-1])
   if len(folder) == 0: folder = '.'

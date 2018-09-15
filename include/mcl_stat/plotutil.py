@@ -321,8 +321,8 @@ def plot_kld(lines, timestamps = None, name='plotutil_plot_kld_test', save_flag 
 #xlabel
 #ylabel
 #suptitle
-lcolors=('#00ff44','#ff0000','#ff00ff','#0044ff')
-hcolors=('#007744','#770000','#770077','#004477')
+lcolors=('#00ff00','#ff0000','#ff00ff','#0000ff')
+hcolors=('#00aa00','#aa0000','#aa00aa','#0000aa')
 suptitles_mcl=[
 'MCL',#mcl 
 'AMCL',#amcl 
@@ -348,17 +348,20 @@ def plot_same_mcl_errorbar(start_idx, pkl_dict):
   #2:mcmcl
   #3:mixmcl
   #sort pkl data according to mcl_pkg, mp, ri
+  indices=np.array([0,20,40,-1])
   fig, axes = plt.subplots(nrows=4, ncols=1, figsize=(8.27,11.69))
   for i,idx in enumerate(range(start_idx*5,start_idx*5+4,1)):#XXX discard mp5000
     y=i%4
     x=(i-y)/1
-    idcs=range(pkl_dict[idx]['bag_lines'].shape[2])
-    parts = axes[i].violinplot(pkl_dict[idx]['bag_lines'][:,0,:],idcs,showmeans=False,showmedians=True,widths=3,bw_method=0.1)
+    timestep=np.arange(1,pkl_dict[idx]['bag_lines'].shape[2]+1)
+    #parts = axes[i].violinplot(pkl_dict[idx]['bag_lines'][:,0,:],timestep,showmeans=False,showmedians=True,widths=3,bw_method=0.1)
+    parts = axes[i].violinplot(pkl_dict[idx]['bag_lines'][:,0,indices],timestep[indices],showmeans=True,showmedians=True,widths=3,bw_method=0.5)
     # Make all the violin statistics marks red:
-    for partname in ('cbars','cmins','cmaxes','cmedians'):
-      parts[partname].set_edgecolor(hcolors[start_idx])
     for vp in parts['bodies']:
       vp.set_facecolor(lcolors[start_idx])
+      print 'color:',vp.get_facecolor()
+    for partname in ('cbars','cmins','cmaxes','cmedians'):
+      parts[partname].set_edgecolor(hcolors[start_idx])
     legend = os.path.basename(pkl_dict[idx]['bag_files_dir']).replace('_',' ')
     axes[i].set_title(suptitles_mp[i], fontsize=18)
   for ax in axes.flatten():
@@ -371,7 +374,7 @@ def plot_same_mcl_errorbar(start_idx, pkl_dict):
   fig.suptitle(suptitles_mcl[start_idx], fontsize=20)
   fig.subplots_adjust(hspace=0.4)
   #plt.show()
-  plt.savefig('{}_kld.eps'.format(suptitles_mcl[start_idx].replace(' ','_')), format='eps',dpi=600)
+  plt.savefig('{}_kld.pdf'.format(suptitles_mcl[start_idx].replace(' ','_')), format='pdf')
   
 
 def plot_same_mp_errorbar(start_idx, pkl_dict):
@@ -385,12 +388,15 @@ def plot_same_mp_errorbar(start_idx, pkl_dict):
   #3:mp4000
   #4:mp5000
   #sort pkl data according to mcl_pkg, mp, ri
+  indices=np.array([0,20,40,-1])
   fig, axes = plt.subplots(nrows=4, ncols=1, figsize=(8.27,11.69))
   for i,idx in enumerate(range(start_idx, 20, 5)):
     y=i%4
     x=(i-y)/1
-    idcs=range(pkl_dict[idx]['bag_lines'].shape[2])
-    parts = axes[i].violinplot(pkl_dict[idx]['bag_lines'][:,0,:],idcs,showmeans=False,showmedians=True,widths=3,bw_method=0.1)
+    timestep=np.arange(1,pkl_dict[idx]['bag_lines'].shape[2]+1)
+    #parts = axes[i].violinplot(pkl_dict[idx]['bag_lines'][:,0,:],timestep,showmeans=False,showmedians=True,widths=3,bw_method=0.1)
+    parts = axes[i].violinplot(pkl_dict[idx]['bag_lines'][:,0,indices],timestep[indices],showmeans=True,showmedians=True,widths=3,bw_method=0.5)
+
     # Make all the violin statistics marks red:
     for partname in ('cbars','cmins','cmaxes','cmedians'):
       parts[partname].set_edgecolor(hcolors[i])
@@ -408,4 +414,55 @@ def plot_same_mp_errorbar(start_idx, pkl_dict):
   fig.suptitle(suptitles_mp[start_idx], fontsize=20)
   fig.subplots_adjust(hspace=0.4)
   #plt.show()
-  plt.savefig('{}_kld.eps'.format(suptitles_mp[start_idx].replace(' ','_')), format='eps',dpi=600)
+  plt.savefig('{}_kld.pdf'.format(suptitles_mp[start_idx].replace(' ','_')), format='pdf')
+
+def plot_same_timestep_kld_violin(start_idx,pkl_dict):
+#def plot_same_timestep_kld_violin(timesteps, pkl_dict):
+  """
+  This plots kld distance at TIMESTEPS against different algorithms.
+  TIMESTEPS is a list of timesteps.
+  """
+  #start_idx between 0~4
+  #0:mp1000
+  #1:mp2000
+  #2:mp3000
+  #3:mp4000
+  #4:mp5000
+  #sort pkl data according to mcl_pkg, mp, ri
+  timesteps=np.array([0,20,40,67])
+  #fig, axes = plt.subplots(nrows=len(timesteps), ncols=1, figsize=(8.27,5.85))
+  fig, axes = plt.subplots(nrows=len(timesteps), ncols=1, figsize=(8.27,5.5))
+  #for each timestep ti
+  #for aidx,ti in enumerate(timesteps):
+  for ti,ax in enumerate(axes):
+    #for each particle number
+    for mcl,dict_idx in enumerate(range(start_idx, 20, 5)):
+      #parts = axes[ti].violinplot(pkl_dict[dict_idx]['bag_lines'][:,0,ti],aidx,showmeans=True,showmedians=True,widths=3,bw_method=0.5)
+      parts = ax.violinplot(pkl_dict[dict_idx]['bag_lines'][:,0,timesteps[ti]],[mcl+1],showmeans=False,showmedians=True,widths=0.5,bw_method=0.5)
+      for partname in ('cbars','cmins','cmaxes','cmedians'):
+        parts[partname].set_edgecolor(hcolors[mcl])
+      for vp in parts['bodies']:
+        vp.set_facecolor(lcolors[mcl])
+      legend = os.path.basename(pkl_dict[dict_idx]['bag_files_dir']).replace('_',' ')
+    ax.set_title('Time step {}'.format(timesteps[ti]), fontsize=18)
+    ax.grid(linestyle='-')
+    ax.set_ylabel(r'$\mathrm{D_{KL}}$', fontsize=16)
+    #ax.set_ylim([0,35])
+    #
+    ax.get_xaxis().set_tick_params(direction='out')
+    ax.get_xaxis().set_ticklabels([])
+    ax.xaxis.set_ticks_position('bottom')
+    ax.set_xticks(np.arange(1, len(suptitles_mcl) + 1))
+    ax.set_xlim(0.25, len(suptitles_mcl) + 0.75)
+  axes[-1].set_xticklabels(suptitles_mcl, fontsize=16)
+  #axes[-1].set_xlabel('Algorithms', fontsize=16)
+    #axes[aidx].set_title('KLD distribution at time step {}'.format(ti), fontsize=18)
+    #axes[aidx].grid(linestyle='-')
+    #axes[aidx].set_ylabel(r'$\mathrm{D_{KL}}$', fontsize=16)
+    #axes[aidx].set_ylim([0,35])
+  #axes.flatten()[-1].set_xlabel("time step index", fontsize=16)
+  #fig.suptitle("Violin Plotting for KLD wrt Time Step Index", fontsize=22)
+  #fig.suptitle(r'Violin plotting of $\mathrm{D_{KL}}$ distributions from algorithms with ' + '{}'.format(suptitles_mp[start_idx]), fontsize=20)
+  fig.subplots_adjust(hspace=0.4)
+  #plt.show()
+  plt.savefig('{}_kld_vs_mcl.pdf'.format(suptitles_mp[start_idx].replace(' ','_')), format='pdf')
