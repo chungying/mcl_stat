@@ -314,6 +314,7 @@ ROWS = 2
 COLS = 4
 def ploteach(fileidx, imgname, timestamp, errmat, plotmat, good_numbers, totals):
   """
+  Save figure
   This function plots 6 figures in one image.
   figure 1: trajectory
   figure 2: position error
@@ -569,3 +570,34 @@ def plot_same_timestep_kld_violin(start_idx,pkl_dict):
   #plt.show()
   plt.savefig('{}_kld_vs_mcl.pdf'.format(suptitles_mp[start_idx].replace(' ','_')), format='pdf')
 
+def plot_same_timestep_distance_violin(objs,dims,timesteps=[0,20,40,67],mps=[1000,2000,3000,4000,5000]):#,pkl_dict):
+  """
+  This plots distance error distance at TIMESTEPS against different algorithms.
+  TIMESTEPS is a list of timesteps.
+  OBJS is a list of dictionary objects.
+  A dictionary object contains all of information of a mcl with the same particle number and its distance, angular, mean square errors.
+  """
+  #start_idx between 0~4
+  #0:mp1000
+  #1:mp2000
+  #2:mp3000
+  #3:mp4000
+  #4:mp5000
+  all_lines = {}#allLines
+  kwords = {}
+  kcolors = {}
+  klegends = {}
+  error_dict = {}#errs
+  yerrdict = {}
+  yerrs = {}
+  for mp in alwdmp:
+    for obj_key, obj in objs.items():
+      linek = obj_key
+      valuex = mp
+      if linek in all_lines:  
+        all_lines[linek] = {}
+        error_dict = {}
+        kwords[linek] = kword(obj)
+        kcolors[linek] = mcl2color(obj)
+        klegends[linek] = mcl2name(obj)
+    obj['list_final_ed']

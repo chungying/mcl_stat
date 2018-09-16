@@ -53,31 +53,30 @@ def errtimestat(errtime_list):
   #align all to the timeline of the shortest and produce a matrix
   rows = len(errtime_list)
   cols = len(errtime_list[shortest[0]])
-  mat = np.arange(rows*cols,dtype=float).reshape(rows,cols)
+  mat_error_time = np.arange(rows*cols,dtype=float).reshape(rows,cols)
   prev_time = None
   for time, err in errtime_list[shortest[0]].items():
     if prev_time is None:
       prev_time = time
     else:
       if prev_time >= time:
-        raise Exception('errtime of {} is not time-ordered'.format(idx_row))
+        raise Exception('errtime of {}-th bag is not time-ordered'.format(shortest[0]))
       prev_time = time
-  for idx_row, each in enumerate(errtime_list):
+  for bag_idx, each in enumerate(errtime_list):
     if len(each) != shortest[0]:
-      for idx_col, (time, err) in enumerate(errtime_list[shortest[0]].items()):
+      for time_idx, (time, not_used_err) in enumerate(errtime_list[shortest[0]].items()):
         closestkey = ut.takeClosest(each.keys(), time)
-        mat[idx_row, idx_col] = each[closestkey]
+        mat_error_time[bag_idx, time_idx] = each[closestkey]
     else:
-        mat[idx_row, :] = np.array(each.values())
+        mat_error_time[bag_idx, :] = np.array(each.values())
   #each column is a timestep
   #produce mean, std, minimum, maximum in a matrix
   errtime_mat = np.arange(6*cols,dtype=float).reshape(6,cols)
-  for idx_col, (time, err) in enumerate(errtime_list[shortest[0]].items()):
-    m = np.mean(mat[:,idx_col])
-    ms = np.mean(np.square(mat[:,idx_col]))#mean square
-    #errtime_mat[:,idx_col] = np.array([time, m, np.std(mat[:,idx_col]), m-np.min(mat[:,idx_col]), np.max(mat[:,idx_col])-m ])
-    errtime_mat[:,idx_col] = np.array([time, m, np.std(mat[:,idx_col]), m-np.min(mat[:,idx_col]), np.max(mat[:,idx_col])-m, ms])
-  return errtime_mat
+  for time_idx, (timestep, not_used_err) in enumerate(errtime_list[shortest[0]].items()):
+    m = np.mean(mat_error_time[:,time_idx])
+    ms = np.mean(np.square(mat_error_time[:,time_idx]))#mean square
+    errtime_mat[:,time_idx] = np.array([timestep, m, np.std(mat_error_time[:,time_idx]), m-np.min(mat_error_time[:,time_idx]), np.max(mat_error_time[:,time_idx])-m, ms])
+  return errtime_mat, mat_error_time
 
 def align_errtime(errtime_list):
   """
@@ -118,6 +117,7 @@ def calculate_errtime_stat_from_errtime_mat(errtime_mat):
   for idx_col, (time, err) in enumerate(errtime_list[shortest[0]].items()):
     m = np.mean(errtime_mat[:,idx_col])
     ms = np.mean(np.square(errtime_mat[:,idx_col]))#mean square
+    ###XXX timesteps, mean, std, min, max, mean square 
     errtime_stat[:,idx_col] = np.array([time, m, np.std(errtime_mat[:,idx_col]), m-np.min(errtime_mat[:,idx_col]), np.max(errtime_mat[:,idx_col])-m, ms])
   return errtime_stat
 

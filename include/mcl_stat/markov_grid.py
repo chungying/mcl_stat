@@ -24,11 +24,11 @@ def shrink_grid(grid,shrink_scales):
   return shrink
 
 def kld(p1,p2):
-"""
-return KL divergence from p2 density to p1 density
-p1 is ground truth distribution
-p2 is the approximated distribution
-"""
+  """
+  return KL divergence from p2 density to p1 density
+  p1 is ground truth distribution
+  p2 is the approximated distribution
+  """
   return np.sum(np.multiply(p1,np.log(p1+float_info.epsilon)-np.log(p2+float_info.epsilon)))
 
 def kld2(p1,p2):

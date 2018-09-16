@@ -10,6 +10,8 @@ import mcl_stat.util as ut
 import mcl_stat.statutil as su
 import mcl_stat.ioutil as iu
 import mcl_stat.plotutil as pu
+from mcl_stat.util import ori2heading
+from mcl_stat.mclmap import *
 import re
 import sys
 import rosbag
@@ -17,12 +19,22 @@ from collections import OrderedDict as od
 import matplotlib.pyplot as plt
 import numpy as np
 from math import pi
+import os
+import argparse
 
 BEGIN=None
 fileIdx = 0
 thres_d = 2
 thres_a = pi*15/180
 tfm={True: 'Succeeded', False: 'Failed'}
+
+def parse_arguments():
+  parser = argparse.ArgumentParser(description='This script analyses statistics of multiple bag files recording algorithm results.')
+  parser.add_argument('-b','--bag-files', nargs='+', help='<Required> A list of bag files with relative path to current folder', required=True)
+  parser.add_argument('--output-dir', help='<Optional> The folder for storing a pickle file of algorithm statistics. The default is current folder')
+  parser.add_argument('--save-pkl', action='store_true', help='<Optional:False> Whether save algorithm statistics into a pickle file')
+  parser.add_argument('--save-img', action='store_true', help='<Optional:False> Whether save plotted figures for all bag files')
+  return parser.parse_args()
 
 def process(bagfile, plotflag = True, errtime=None, clouddict=None):
   """
@@ -166,41 +178,65 @@ def help():
   print "BAG is the filename of a bag file."
 
 if __name__=='__main__':
-  #TODO make this function main()
   #TODO using argparse
-  if len(sys.argv) == 1:
-    help()
-    exit(1)
-  elif len(sys.argv) == 2:
-    if sys.argv[1].find(".bag") == -1:
-      print sys.argv[1], " is not bag file"
-      help()
-      exit(1)
-    elif sys.argv[1].find(".bag") >= 0:
-      print "only got one bag file, saving the figure"
-      s, d, a, rmse = process( sys.argv[1], True)
-    exit(0)
-  print "there are more than two arguments"
-  plotflag = False
-  bagfiles = []
-  if sys.argv[1].find(".bag") == -1:
-    if sys.argv[1].lower() == "true": 
-      plotflag = True
-    else: 
-      plotflag = False
-    bagfiles += sys.argv[2:]
+  # parse argument bag_files and bag_files_dir
+  args = parse_arguments()
+  plotflag = args.save_img
+  bag_files = []
+  bag_files_dir_path = None
+  abs_output_dir=None
+  if args.bag_files is not None:
+    bag_files_dir_path = None
+    for p in args.bag_files:
+      abs_path = os.path.abspath(p)
+      if not os.path.isfile(abs_path):
+        raise RuntimeError('cannot find {}'.format(abs_path))
+      bag_files.append(abs_path)
+      bag_files_dir_path = os.path.dirname(abs_path)
+  if args.output_dir is None:
+    abs_output_dir = bag_files_dir_path
   else:
-    plotflag = False
-    bagfiles += sys.argv[1:]
+    abs_output_dir = os.path.abspath(args.output_dir)
 
-  total = len(bagfiles)
+  if len(bag_files) == 1:
+    print "only got one bag file, saving the figure"
+    s, d, a, rmse = process( sys.argv[1], True)
+    exit(0)
+
+  total = len(bag_files)
   print "there are ", total, " files."
   sucCount = 0
+  #using ioutil to create dic
   #create dic for this batch of bag files
-  dic = {'list_final_ed':[], 'list_final_ea':[], 'list_rmse':[]}
+  dic = {'list_final_ed':[], 'list_final_ea':[], 'list_rmse':[],'folder':bag_files_dir_path}
+  
+  #TODO using a function wrap this part returning a dictionary for updating dic
+  abs_batch_name = os.path.basename(bag_files[0]).split('_2018',1)[0]
+  abs_output_path = abs_output_dir+'/'+abs_batch_name+'.pkl'
+  print bag_files[0]
+  print "saving pkl file to", (abs_output_path)
+   
+  words = re.split('[/_]',abs_batch_name)
+  if 'amcl' in words: dic['mclpkg'] = 'amcl'
+  elif 'mixmcl' in words: dic['mclpkg'] = 'mixmcl'
+  elif 'mcmcl' in words: dic['mclpkg'] = 'mcmcl'
+  elif 'mcl' in words: dic['mclpkg'] = 'mcl'
+  else:
+    print 'cannot identify mclpkg by method2'
+  ls = re.split('[ /_]',abs_batch_name)
+  for s in ls:
+    if 'mp' in s:
+      dic['mp'] = int(s.split('mp')[-1])
+    if 'ri' in s:
+      dic['ri'] = int(s.split('ri')[-1])
+    if 'ita' in s:
+      dic['ita'] = float(s.split('ita')[-1])
+    if 'gamma' in s:
+      dic['gamma'] = int(s.split('gamma')[-1])
+
   errtime_list = []
   clouddict_list = []
-  for each in bagfiles:
+  for each in bag_files:
     if each.find(".bag") == -1:
       print each, " is not a rosbag file."
     else:
@@ -218,28 +254,9 @@ if __name__=='__main__':
 
   #cloud stat 
   dic['list_cloudstat'] = su.cloudstat(clouddict_list)
-  #TODO using os.path.basename() or os.path.dirname() to obtain the information of batch name, mp, ri, ita
-  #TODO using a function wrap this part returning a dictionary for updating dic
-  batch_name = bagfiles[0].split('_2018',1)[0]
-  dic['folder'] = '/'.join(batch_name.split('/')[0:-1])
-  words = re.split('[/_]',batch_name)
-  if 'amcl' in words: dic['mclpkg'] = 'amcl'
-  elif 'mixmcl' in words: dic['mclpkg'] = 'mixmcl'
-  elif 'mcmcl' in words: dic['mclpkg'] = 'mcmcl'
-  elif 'mcl' in words: dic['mclpkg'] = 'mcl'
-  else:
-    print 'cannot identify mclpkg by method2'
-  ls = re.split('[ /_]',batch_name)
-  for s in ls:
-    if 'mp' in s:
-      dic['mp'] = int(s.split('mp')[-1])
-    if 'ri' in s:
-      dic['ri'] = int(s.split('ri')[-1])
-    if 'ita' in s:
-      dic['ita'] = float(s.split('ita')[-1])
-    if 'gamma' in s:
-      dic['gamma'] = int(s.split('gamma')[-1])
+
   print "successfual rate: ", sucCount, " out of ", total, " = ", 1.0*sucCount/total*100.0, "%"
-  print "saving file:", (batch_name+'.pkl')
-  iu.data2pkl(batch_name+'.pkl', dic)
+
+  iu.data2pkl(abs_output_path, dic)
   exit(0)
+
